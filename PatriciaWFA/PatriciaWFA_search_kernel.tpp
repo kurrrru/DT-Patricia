@@ -23,8 +23,14 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         return results;
     }
 
-    const int32_t query_length = static_cast<int32_t>(query.length());
-    
+    // =========================================================
+    // クエリのパディング処理
+    // =========================================================
+    std::string padded_query_str = query;
+    padded_query_str.append(PatriciaTree::SIMD_PADDING_SIZE, '\0');
+    std::string_view padded_query(padded_query_str.data(), query.length());
+    const int32_t query_length = static_cast<int32_t>(padded_query.length());
+
     std::vector<bool> found_string_ids(_patricia_tree.size(), false);
     
     size_t history_size;
@@ -66,7 +72,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 2: GwfExtend
-        extend(query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts, visited_map);
+        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts, visited_map);
         
         if (upper_bound >= 0) {
             prune_by_upper_bound(
@@ -121,7 +127,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 3: GwfExpand
-        expand(query, wf_history, next_wf_array, curr_idx, history_size, active_counts, visited_map);
+        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts, visited_map);
 
         if (upper_bound >= 0) {
             prune_by_upper_bound(
@@ -162,7 +168,13 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         return results;
     }
 
-    const int32_t query_length = static_cast<int32_t>(query.length());
+    // =========================================================
+    // クエリのパディング処理
+    // =========================================================
+    std::string padded_query_str = query;
+    padded_query_str.append(PatriciaTree::SIMD_PADDING_SIZE, '\0');
+    std::string_view padded_query(padded_query_str.data(), query.length());
+    const int32_t query_length = static_cast<int32_t>(padded_query.length());
     
     std::vector<bool> found_string_ids(_patricia_tree.size(), false);
     
@@ -221,7 +233,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 2: GwfExtend
-        extend(query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts, visited_map_m);
+        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts, visited_map_m);
         if (upper_bound >= 0) {
             prune_by_upper_bound<true>(
                 next_wf_array_d,
@@ -277,7 +289,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 3: GwfExpand
-        expand(query, wf_history_d, wf_history_m, wf_history_i,
+        expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
             curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d,
             visited_map_d, visited_map_m, visited_map_i);
