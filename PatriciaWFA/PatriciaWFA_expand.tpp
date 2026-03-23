@@ -13,12 +13,12 @@ void PatriciaWFA<CostType>::expand(
     size_t history_size,
     const std::vector<uint32_t> &active_counts,
     DynamicEpochHashMap<> &visited_map) const requires (CostType::is_linear) {
-    next_wf_array.reset();
+    next_wf_array.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
     // current_score + 1 に対応する WavefrontArray を構築する
     if constexpr (CostType::is_unit) {
         WavefrontArray &wf_array = wf_history[curr_idx];
-        for (size_t idx = 0; idx < wf_array.size();) {
+        for (size_t idx = 0; idx < wf_array.active_size();) {
             // [start_idx, end_idx): node_id が同じ区間
             size_t start_idx = idx;
             size_t end_idx = idx + 1;
@@ -27,7 +27,7 @@ void PatriciaWFA<CostType>::expand(
             uint32_t node_id = WavefrontArray::calc_node_id_from_vk(first_state.vk);
 
             // node_idが等しい区間を探す
-            while (end_idx < wf_array.size()) {
+            while (end_idx < wf_array.active_size()) {
                 if (WavefrontArray::calc_node_id_from_vk(wf_array[end_idx].vk) != node_id) {
                     break;
                 }
@@ -100,7 +100,7 @@ void PatriciaWFA<CostType>::expand(
 
                     // 3. 結果の登録 (有効な更新があった場合のみ)
                     if (max_j >= -1) {
-                        next_wf_array.push_back(node_id, min_k, max_j);
+                        next_wf_array.push_back_state(node_id, min_k, max_j);
                     }
                 }
             }
@@ -123,35 +123,35 @@ void PatriciaWFA<CostType>::expand(
         // wf_history[curr_idx - _cost.gap][start_idx_d], wf_history[curr_idx - cost.mismatch][start_idx_s], wf_history[curr_idx - _cost.gap][start_idx_i]の中でnode_idが最小のものを見つける
         // そのnode_idとnode_idが等しい区間をそれぞれ見つける (end_idx_d, end_idx_s, end_idx_iを決定する)
         // 以降、そのnode_id に対して単位コスト版と同様の処理を行う
-        while (start_idx_d < wf_array_d.size() || start_idx_s < wf_array_s.size() || start_idx_i < wf_array_i.size()) {
+        while (start_idx_d < wf_array_d.active_size() || start_idx_s < wf_array_s.active_size() || start_idx_i < wf_array_i.active_size()) {
             // 次のnode_idを決定
             uint32_t node_id = UINT32_MAX;
-            if (start_idx_d < wf_array_d.size()) {
+            if (start_idx_d < wf_array_d.active_size()) {
                 uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_d[start_idx_d].vk);
                 node_id = std::min(node_id, nid);
             }
-            if (start_idx_s < wf_array_s.size()) {
+            if (start_idx_s < wf_array_s.active_size()) {
                 uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_s[start_idx_s].vk);
                 node_id = std::min(node_id, nid);
             }
-            if (start_idx_i < wf_array_i.size()) {
+            if (start_idx_i < wf_array_i.active_size()) {
                 uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_i[start_idx_i].vk);
                 node_id = std::min(node_id, nid);
             }
 
             // node_idが等しい区間を見つける
             size_t end_idx_d = start_idx_d;
-            while (end_idx_d < wf_array_d.size() &&
+            while (end_idx_d < wf_array_d.active_size() &&
                    WavefrontArray::calc_node_id_from_vk(wf_array_d[end_idx_d].vk) == node_id) {
                 ++end_idx_d;
             }
             size_t end_idx_s = start_idx_s;
-            while (end_idx_s < wf_array_s.size() &&
+            while (end_idx_s < wf_array_s.active_size() &&
                    WavefrontArray::calc_node_id_from_vk(wf_array_s[end_idx_s].vk) == node_id) {
                 ++end_idx_s;
             }
             size_t end_idx_i = start_idx_i;
-            while (end_idx_i < wf_array_i.size() &&
+            while (end_idx_i < wf_array_i.active_size() &&
                    WavefrontArray::calc_node_id_from_vk(wf_array_i[end_idx_i].vk) == node_id) {
                 ++end_idx_i;
             }
@@ -220,7 +220,7 @@ void PatriciaWFA<CostType>::expand(
 
                     // 3. 結果の登録 (有効な更新があった場合のみ)
                     if (max_j >= -1) {
-                        next_wf_array.push_back(node_id, min_k, max_j);
+                        next_wf_array.push_back_state(node_id, min_k, max_j);
                     }
                 }
             }
@@ -244,13 +244,15 @@ void PatriciaWFA<CostType>::expand(
     int32_t curr_idx,
     size_t history_size, 
     const std::vector<uint32_t> &active_counts,
-    std::array<WavefrontArray, 5> &d_buffer,
+    std::array<WavefrontArray, 5> &pending_d_buffer,
+    WavefrontArray &pending_d,
+    WavefrontArray &merged_wf_array_d,
     DynamicEpochHashMap<> &visited_map_d,
     DynamicEpochHashMap<> &visited_map_m,
     DynamicEpochHashMap<> &visited_map_i) const requires (!CostType::is_linear) {
-    next_wf_array_d.reset();
-    next_wf_array_m.reset();
-    next_wf_array_i.reset();
+    next_wf_array_d.clear_logical_size();
+    next_wf_array_m.clear_logical_size();
+    next_wf_array_i.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
     
     // current_score + 1 に対応する WavefrontArray を構築する
@@ -266,38 +268,37 @@ void PatriciaWFA<CostType>::expand(
     size_t start_idx_m = 0; 
     size_t start_idx_i = 0; 
 
-    // ノード境界を越えるDeletion状態を一時保存するバッファ
-    WavefrontArray pending_d;
+    bool has_pending_d = false;
 
-    while (start_idx_d < wf_array_d.size() || start_idx_m < wf_array_m.size() || start_idx_i < wf_array_i.size()) {
+    while (start_idx_d < wf_array_d.active_size() || start_idx_m < wf_array_m.active_size() || start_idx_i < wf_array_i.active_size()) {
         // 次のnode_idを決定
         uint32_t node_id = UINT32_MAX;
-        if (start_idx_d < wf_array_d.size()) {
+        if (start_idx_d < wf_array_d.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_d[start_idx_d].vk);
             node_id = std::min(node_id, nid);
         }
-        if (start_idx_m < wf_array_m.size()) {
+        if (start_idx_m < wf_array_m.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_m[start_idx_m].vk);
             node_id = std::min(node_id, nid);
         }
-        if (start_idx_i < wf_array_i.size()) {
+        if (start_idx_i < wf_array_i.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_i[start_idx_i].vk);
             node_id = std::min(node_id, nid);
         }
 
         // node_idが等しい区間を見つける
         size_t end_idx_d = start_idx_d;
-        while (end_idx_d < wf_array_d.size() &&
+        while (end_idx_d < wf_array_d.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_d[end_idx_d].vk) == node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
-        while (end_idx_m < wf_array_m.size() &&
+        while (end_idx_m < wf_array_m.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_m[end_idx_m].vk) == node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
-        while (end_idx_i < wf_array_i.size() &&
+        while (end_idx_i < wf_array_i.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_i[end_idx_i].vk) == node_id) {
             ++end_idx_i;
         }
@@ -340,7 +341,8 @@ void PatriciaWFA<CostType>::expand(
                         for (uint8_t code = 1; code <= 5; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
-                                pending_d.push_back(child, next_k, 0);
+                                pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
+                                has_pending_d = true;
                             }
                         }
                     }
@@ -359,7 +361,7 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    next_wf_array_d.push_back(node_id, min_k, max_j);
+                    next_wf_array_d.push_back_state(node_id, min_k, max_j);
                 }
             }
         }
@@ -399,7 +401,7 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    next_wf_array_i.push_back(node_id, min_k, max_j);
+                    next_wf_array_i.push_back_state(node_id, min_k, max_j);
                 }
             }
         }
@@ -410,54 +412,106 @@ void PatriciaWFA<CostType>::expand(
     }
 
     // === 保留していたノード境界Deletionのマージ処理 ===
-    if (!pending_d.empty()) {
-        pending_d.dedup();
+    if (has_pending_d) {
+        // === 保留していたノード境界Deletionのマージ処理 ===
+        std::array<size_t, 5> ptrs = {0, 0, 0, 0, 0};
+        int i = 0;
 
-        WavefrontArray tmp_wf; 
+        while (true) {
+            // 現在のバッファが空の場合は、次の非空バッファを探す
+            if (ptrs[i] >= pending_d_buffer[i].active_size()) {
+                int next_i = (i + 1) % 5;
+                while (next_i != i && ptrs[next_i] >= pending_d_buffer[next_i].active_size()) {
+                    next_i = (next_i + 1) % 5;
+                }
+                if (next_i == i) break; // すべてのバッファが空になったため終了
+                i = next_i;
+                continue;
+            }
+
+            uint64_t now_vk = pending_d_buffer[i][ptrs[i]].vk;
+
+            // 比較対象となる「次の非空バッファ」を探す
+            int next_i = (i + 1) % 5;
+            while (next_i != i && ptrs[next_i] >= pending_d_buffer[next_i].active_size()) {
+                next_i = (next_i + 1) % 5;
+            }
+
+            // 他のすべてのバッファが空の場合、現在のバッファの残りを全て出力
+            if (next_i == i) {
+                while (ptrs[i] < pending_d_buffer[i].active_size()) {
+                    const auto& st = pending_d_buffer[i][ptrs[i]++];
+                    pending_d.push_back_state(
+                        WavefrontArray::calc_node_id_from_vk(st.vk), 
+                        WavefrontArray::calc_k_from_vk(st.vk), 
+                        st.offset
+                    );
+                }
+                break;
+            }
+
+            uint64_t next_vk = pending_d_buffer[next_i][ptrs[next_i]].vk;
+
+            // あなたの設計したコアロジック
+            if (now_vk <= next_vk) {
+                const auto& st = pending_d_buffer[i][ptrs[i]++];
+                pending_d.push_back_state(
+                    WavefrontArray::calc_node_id_from_vk(st.vk), 
+                    WavefrontArray::calc_k_from_vk(st.vk), 
+                    st.offset
+                );
+            } else {
+                // 次のバッファに最小値があるため、ポインタを移動
+                i = next_i;
+            }
+        }
 
         size_t idx1 = 0;
         size_t idx2 = 0;
-        size_t len1 = next_wf_array_d.size();
-        size_t len2 = pending_d.size();
+        size_t len1 = next_wf_array_d.active_size();
+        size_t len2 = pending_d.active_size();
 
         while (idx1 < len1 || idx2 < len2) {
             if (idx1 == len1) {
                 const auto& st = pending_d[idx2];
-                tmp_wf.push_back(WavefrontArray::calc_node_id_from_vk(st.vk), 
-                                    WavefrontArray::calc_k_from_vk(st.vk), 
-                                    st.offset);
+                merged_wf_array_d.push_back_state(WavefrontArray::calc_node_id_from_vk(st.vk), 
+                                          WavefrontArray::calc_k_from_vk(st.vk), 
+                                          st.offset);
                 ++idx2;
             } else if (idx2 == len2) {
                 const auto& st = next_wf_array_d[idx1];
-                tmp_wf.push_back(WavefrontArray::calc_node_id_from_vk(st.vk), 
-                                    WavefrontArray::calc_k_from_vk(st.vk), 
-                                    st.offset);
+                merged_wf_array_d.push_back_state(WavefrontArray::calc_node_id_from_vk(st.vk), 
+                                          WavefrontArray::calc_k_from_vk(st.vk), 
+                                 st.offset);
                 ++idx1;
             } else {
                 const auto& st1 = next_wf_array_d[idx1];
                 const auto& st2 = pending_d[idx2];
 
                 if (st1.vk < st2.vk) {
-                    tmp_wf.push_back(WavefrontArray::calc_node_id_from_vk(st1.vk), 
-                                     WavefrontArray::calc_k_from_vk(st1.vk), 
-                                     st1.offset);
+                    merged_wf_array_d.push_back_state(WavefrontArray::calc_node_id_from_vk(st1.vk), 
+                                              WavefrontArray::calc_k_from_vk(st1.vk), 
+                                              st1.offset);
                     ++idx1;
                 } else if (st2.vk < st1.vk) {
-                    tmp_wf.push_back(WavefrontArray::calc_node_id_from_vk(st2.vk), 
+                    merged_wf_array_d.push_back_state(WavefrontArray::calc_node_id_from_vk(st2.vk), 
                                      WavefrontArray::calc_k_from_vk(st2.vk), 
                                      st2.offset);
                     ++idx2;
                 } else {
+                    // vk が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用
                     const auto& winner = (st1.offset >= st2.offset) ? st1 : st2;
-                    tmp_wf.push_back(WavefrontArray::calc_node_id_from_vk(winner.vk), 
-                                        WavefrontArray::calc_k_from_vk(winner.vk), 
-                                        winner.offset);
+                    merged_wf_array_d.push_back_state(WavefrontArray::calc_node_id_from_vk(winner.vk), 
+                                     WavefrontArray::calc_k_from_vk(winner.vk), 
+                                     winner.offset);
                     ++idx1;
                     ++idx2;
                 }
             }
         }
-        next_wf_array_d.swap(tmp_wf);
+        // マージ結果を next_wf_array_d に O(1) でスワップ
+        next_wf_array_d.swap(merged_wf_array_d);
+        merged_wf_array_d.clear_logical_size();
     }
 
     wf_history_d[(curr_idx + 1) % history_size].swap(next_wf_array_d);
@@ -476,34 +530,34 @@ void PatriciaWFA<CostType>::expand(
     start_idx_m = 0; 
     start_idx_i = 0; 
 
-    while (start_idx_d < wf_array_dm.size() || start_idx_m < wf_array_mm.size() || start_idx_i < wf_array_im.size()) {
+    while (start_idx_d < wf_array_dm.active_size() || start_idx_m < wf_array_mm.active_size() || start_idx_i < wf_array_im.active_size()) {
         // 次のnode_idを決定
         uint32_t node_id = UINT32_MAX;
-        if (start_idx_d < wf_array_dm.size()) {
+        if (start_idx_d < wf_array_dm.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_dm[start_idx_d].vk);
             node_id = std::min(node_id, nid);
         }
-        if (start_idx_m < wf_array_mm.size()) {
+        if (start_idx_m < wf_array_mm.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_mm[start_idx_m].vk);
             node_id = std::min(node_id, nid);
         }
-        if (start_idx_i < wf_array_im.size()) {
+        if (start_idx_i < wf_array_im.active_size()) {
             uint32_t nid = WavefrontArray::calc_node_id_from_vk(wf_array_im[start_idx_i].vk);
             node_id = std::min(node_id, nid);
         }
 
         size_t end_idx_d = start_idx_d;
-        while (end_idx_d < wf_array_dm.size() &&
+        while (end_idx_d < wf_array_dm.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_dm[end_idx_d].vk) == node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
-        while (end_idx_m < wf_array_mm.size() &&
+        while (end_idx_m < wf_array_mm.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_mm[end_idx_m].vk) == node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
-        while (end_idx_i < wf_array_im.size() &&
+        while (end_idx_i < wf_array_im.active_size() &&
                 WavefrontArray::calc_node_id_from_vk(wf_array_im[end_idx_i].vk) == node_id) {
             ++end_idx_i;
         }
@@ -555,7 +609,7 @@ void PatriciaWFA<CostType>::expand(
                 }
 
                 if (max_j >= -1) {
-                    next_wf_array_m.push_back(node_id, min_k, max_j);
+                    next_wf_array_m.push_back_state(node_id, min_k, max_j);
                 }
             }
         }
@@ -578,7 +632,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
     int upper_bound_remain
     ) const requires (CostType::is_linear) {
     size_t write_idx = 0;
-    for (size_t i = 0; i < wf_array.size(); i++) {
+    for (size_t i = 0; i < wf_array.active_size(); i++) {
         const auto &state = wf_array[i];
         uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
         int32_t k = WavefrontArray::calc_k_from_vk(state.vk);
@@ -590,7 +644,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
         if ((query_remain - max_remain) * static_cast<int32_t>(_cost.gap) <= upper_bound_remain &&
             (min_remain - query_remain) * static_cast<int32_t>(_cost.gap) <= upper_bound_remain) {
             if (write_idx != i) {
-                wf_array[write_idx] = state;
+                wf_array.update_state(write_idx, node_id, k, j_pos);
             }
             write_idx++;
         }
@@ -616,7 +670,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
     // M, I, D それぞれに対して判定を行う
     auto prune_logic = [&](WavefrontArray& wf, int state_type) {
         size_t write_idx = 0;
-        for (size_t i = 0; i < wf.size(); ++i) {
+        for (size_t i = 0; i < wf.active_size(); ++i) {
             const auto &state = wf[i];
             uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
             int32_t v_k = WavefrontArray::calc_k_from_vk(state.vk);
@@ -643,7 +697,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
 
             if (lb <= upper_bound_remain) {
                 if (write_idx != i) {
-                    wf[write_idx] = state;
+                    wf.update_state(write_idx, node_id, v_k, j_pos);
                 }
                 write_idx++;
             }

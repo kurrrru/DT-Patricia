@@ -42,8 +42,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     uint32_t root = _patricia_tree.root_id();
-    // wf_array.push_back(root, 0, -1);
-    wf_history[0].push_back(root, 0, -1);
+    wf_history[0].push_back_state(root, 0, -1);
     
     int32_t current_score = 0;  // 現在の編集距離
     
@@ -80,7 +79,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // 終端チェック: クエリ全体が処理されたノードを探す
-        for (size_t idx = 0; idx < curr_wf.size(); ++idx) {
+        for (size_t idx = 0; idx < curr_wf.active_size(); ++idx) {
             const WavefrontArray::DiagState &state = curr_wf[idx];
             uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
             int32_t k = WavefrontArray::calc_k_from_vk(state.vk);
@@ -137,7 +136,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         ++current_score;
 
         // 以降のループで使うことはないので履歴をリセット
-        wf_history[(current_score + 1) % history_size].reset();
+        wf_history[(current_score + 1) % history_size].clear_logical_size();
     }
     return results;
 }
@@ -178,10 +177,13 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     WavefrontArray next_wf_array_i;
     WavefrontArray child_wf_array;
     std::array<WavefrontArray, 5> buffer;
+
+    WavefrontArray pending_d;
+    WavefrontArray merged_wf_array_d;
     
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     uint32_t root = _patricia_tree.root_id();
-    wf_history_m[0].push_back(root, 0, -1);
+    wf_history_m[0].push_back_state(root, 0, -1);
     
     int32_t current_score = 0;  // 現在の編集距離
     
@@ -233,7 +235,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // 終端チェック: クエリ全体が処理されたノードを探す
-        for (size_t idx = 0; idx < curr_wf_m.size(); ++idx) {
+        for (size_t idx = 0; idx < curr_wf_m.active_size(); ++idx) {
             const WavefrontArray::DiagState &state = curr_wf_m[idx];
             uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
             int32_t k = WavefrontArray::calc_k_from_vk(state.vk);
@@ -277,7 +279,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         // Algorithm 3: GwfExpand
         expand(query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
-            curr_idx, history_size, active_counts, buffer,
+            curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d,
             visited_map_d, visited_map_m, visited_map_i);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
@@ -294,9 +296,9 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         ++current_score;
 
         // 以降のループで使うことはないので履歴をリセット
-        wf_history_d[(current_score + 1) % history_size].reset();
-        wf_history_m[(current_score + 1) % history_size].reset();
-        wf_history_i[(current_score + 1) % history_size].reset();
+        wf_history_d[(current_score + 1) % history_size].clear_logical_size();
+        wf_history_m[(current_score + 1) % history_size].clear_logical_size();
+        wf_history_i[(current_score + 1) % history_size].clear_logical_size();
     }
     return results;
 }

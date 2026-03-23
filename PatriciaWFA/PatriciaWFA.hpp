@@ -118,7 +118,9 @@ class PatriciaWFA {
                     int32_t curr_idx,
                     size_t history_size,
                     const std::vector<uint32_t> &active_counts,
-                    std::array<WavefrontArray, 5> &d_buffer,
+                    std::array<WavefrontArray, 5> &pending_d_buffer,
+                    WavefrontArray &pending_d,
+                    WavefrontArray &merged_wf_array_d,
                     DynamicEpochHashMap<> &visited_map_d,
                     DynamicEpochHashMap<> &visited_map_m,
                     DynamicEpochHashMap<> &visited_map_i

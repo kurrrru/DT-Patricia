@@ -12,12 +12,12 @@ void PatriciaWFA<CostType>::extend(
     std::array<WavefrontArray, 5> &buffer,
     const std::vector<uint32_t> &active_counts,
     DynamicEpochHashMap<> &visited_map) const {
-    next_wf_array.reset();
-    child_wf_array.reset();
-    
+    next_wf_array.clear_logical_size();
+    child_wf_array.clear_logical_size();
+
     //[NOTE] ここにおいてbufferは常に空かも、検討後に削除するかもしれない
     for (auto &buf : buffer) {
-        buf.reset();
+        buf.clear_logical_size();
     }
     bool buffer_used = false;
     
@@ -27,34 +27,34 @@ void PatriciaWFA<CostType>::extend(
     size_t child_idx = 0;
     uint32_t last_node_id = UINT32_MAX;
     
-    while (wf_array_idx < wf_array.size() || child_idx < child_wf_array.size() || buffer_used) {
+    while (wf_array_idx < wf_array.active_size() || child_idx < child_wf_array.active_size() || buffer_used) {
         bool wf_array_idx_increment = false;
         bool child_idx_increment = false;
 
         // === ステップ1: 次に処理する状態を選択 ===
         WavefrontArray::DiagState current_state;
-        if (child_idx >= child_wf_array.size() && wf_array_idx >= wf_array.size()) {
+        if (child_idx >= child_wf_array.active_size() && wf_array_idx >= wf_array.active_size()) {
             // bufferのみ残っている場合
             for (const auto& buf : buffer) {
-                for (size_t i = 0; i < buf.size(); ++i) {
+                for (size_t i = 0; i < buf.active_size(); ++i) {
                     const auto& state = buf[i];
-                    child_wf_array.push_back(WavefrontArray::calc_node_id_from_vk(state.vk),
+                    child_wf_array.push_back_state(WavefrontArray::calc_node_id_from_vk(state.vk),
                                         WavefrontArray::calc_k_from_vk(state.vk),
                                         state.offset);
                                         
                 }
             }
             for (auto &buf : buffer) {
-                buf.reset();
+                buf.clear_logical_size();
             }
             buffer_used = false;
             continue;
         }
 
-        if (child_idx >= child_wf_array.size()) {
+        if (child_idx >= child_wf_array.active_size()) {
             current_state = wf_array[wf_array_idx];
             wf_array_idx_increment = true;
-        } else if (wf_array_idx >= wf_array.size()) {
+        } else if (wf_array_idx >= wf_array.active_size()) {
             current_state = child_wf_array[child_idx];
             child_idx_increment = true;
         } else {
@@ -82,15 +82,15 @@ void PatriciaWFA<CostType>::extend(
             // bufferはソート済み
             // (BFS順により child_wf_arrayの末尾 < bufferの最小値 が保証される)
             for (const auto& buf : buffer) {
-                for (size_t i = 0; i < buf.size(); ++i) {
+                for (size_t i = 0; i < buf.active_size(); ++i) {
                     const auto& state = buf[i];
-                    child_wf_array.push_back(WavefrontArray::calc_node_id_from_vk(state.vk),
+                    child_wf_array.push_back_state(WavefrontArray::calc_node_id_from_vk(state.vk),
                                         WavefrontArray::calc_k_from_vk(state.vk),
                                         state.offset);
                 }
             }
             for (auto &buf : buffer) {
-                buf.reset();
+                buf.clear_logical_size();
             }
             buffer_used = false;
 
@@ -134,17 +134,17 @@ void PatriciaWFA<CostType>::extend(
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;
-                    buffer[code - 1].push_back(child, new_k, -1);
+                    buffer[code - 1].push_back_state(child, new_k, -1);
                     buffer_used = true;
                 }
             }
             
             if (_patricia_tree.is_terminal(node_id)) {
-                next_wf_array.push_back(node_id, k, j);
+                next_wf_array.push_back_state(node_id, k, j);
             }
         } else {
             // ノード内で停止  ここで順序逆転起きる可能性あり
-            next_wf_array.push_back(node_id, k, j);
+            next_wf_array.push_back_state(node_id, k, j);
         }
         if (wf_array_idx_increment) {
             ++wf_array_idx;

@@ -52,6 +52,15 @@ public:
         _active_size = 0;
     }
 
+    void set_size(size_t new_size) {
+        _active_size = new_size;
+        if (_vks.size() < new_size) {
+            // This is not preferred usage
+            _vks.resize(new_size);
+            _offsets.resize(new_size);
+        }
+    }
+
     // =========================================================
     // 2. Element Addition & Scalar Access
     // =========================================================
@@ -65,6 +74,8 @@ public:
             if (offset > _offsets[_active_size - 1]) {
                 _offsets[_active_size - 1] = offset;
             }
+            // This warning is for debugging purposes to detect unintended duplicate insertions.
+            // This line will be removed in the future
             std::cout << "[WARN] Duplicate state detected in WavefrontArray::push_back_state. Merging offsets.\n";
             return;
         }
@@ -99,6 +110,20 @@ public:
     int32_t get_offset(size_t index) const {
         return _offsets[index];
     }
+
+        // Swaps the contents of this WavefrontArray with another instance. This is used to efficiently replace the current wavefront array with a new one without copying elements.
+    void swap(WavefrontArray& other) {
+        std::swap(_vks, other._vks);
+        std::swap(_offsets, other._offsets);
+        std::swap(_active_size, other._active_size);
+    }
+
+    void update_state(size_t index, uint32_t node_id, int32_t k, int32_t offset) {
+        const uint64_t vk = calc_vk(node_id, k);
+        _vks[index] = vk;
+        _offsets[index] = offset;
+    }
+
 
     // =========================================================
     // 3. Pointer Access for Vector/SIMD Processing
@@ -145,6 +170,36 @@ public:
     static uint64_t calc_vk(uint32_t node_id, int32_t k) {
         return (static_cast<uint64_t>(node_id) << 32) | (static_cast<uint64_t>(k + DIAGONAL_OFFSET) & DIAGONAL_MASK);
     }
+
+    // Plan to delete below
+    
+    struct DiagState {
+        uint64_t vk;  // 32bit (node_id) + 32bit (diagonal + 0x40000000)
+        int32_t offset;  // position of label at node_id
+        // [NOTE]tracebackをするなら、直前の状態を保存する変数を置く
+        // [NOTE]diagonalはi-jだが、pruningのためにanti-diagonal i+jもgwfaにはあった
+
+        static constexpr uint64_t DIAGONAL_MASK = 0xFFFFFFFF;
+        static constexpr int32_t DIAGONAL_OFFSET = 0x40000000;
+
+        DiagState() = default;
+        DiagState(uint64_t vk_, int32_t offset_) : vk(vk_), offset(offset_) {}
+        DiagState(uint32_t node_id, int32_t k, int32_t offset_) 
+            : vk((static_cast<uint64_t>(node_id) << 32) | static_cast<uint32_t>(k + DIAGONAL_OFFSET)), 
+              offset(offset_) {}
+
+        bool operator<(const DiagState& other) const {
+            return vk < other.vk;
+        }
+    };
+
+    const DiagState& operator[](size_t index) const {
+        static DiagState temp_state;  // This is not thread-safe. Be cautious if using in a multi-threaded context.
+        temp_state.vk = _vks[index];
+        temp_state.offset = _offsets[index];
+        return temp_state;
+    }
+
 };
 
 inline void WavefrontArray::sort_and_deduplicate() {
