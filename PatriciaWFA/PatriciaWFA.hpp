@@ -118,10 +118,13 @@ class PatriciaWFA {
                     int32_t curr_idx,
                     size_t history_size,
                     const std::vector<uint32_t> &active_counts,
+                    std::array<WavefrontArray, 5> &d_buffer,
                     DynamicEpochHashMap<> &visited_map_d,
                     DynamicEpochHashMap<> &visited_map_m,
                     DynamicEpochHashMap<> &visited_map_i
                 ) const requires (!CostType::is_linear);
 };
 
-#include "PatriciaWFA.tpp"
+#include "PatriciaWFA_search_kernel.tpp"
+#include "PatriciaWFA_extend.tpp"
+#include "PatriciaWFA_expand.tpp"
