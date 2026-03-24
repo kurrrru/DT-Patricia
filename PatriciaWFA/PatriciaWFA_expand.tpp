@@ -343,8 +343,10 @@ void PatriciaWFA<CostType>::expand(
                         for (uint8_t code = 1; code <= 5; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
-                                pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
-                                has_pending_d = true;
+                                if (visited_map_d.update_and_check(WavefrontArray::calc_vk(child, next_k), 0)) {
+                                    pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
+                                    has_pending_d = true;
+                                }
                             }
                         }
                     }
@@ -363,7 +365,9 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    next_wf_array_d.push_back_state(node_id, min_k, max_j);
+                    if (visited_map_d.update_and_check(WavefrontArray::calc_vk(node_id, min_k), max_j)) {
+                        next_wf_array_d.push_back_state(node_id, min_k, max_j);
+                    }
                 }
             }
         }
@@ -405,7 +409,9 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    next_wf_array_i.push_back_state(node_id, min_k, max_j);
+                    if (visited_map_i.update_and_check(WavefrontArray::calc_vk(node_id, min_k), max_j)) {
+                        next_wf_array_i.push_back_state(node_id, min_k, max_j);
+                    }
                 }
             }
         }
@@ -569,7 +575,9 @@ void PatriciaWFA<CostType>::expand(
                 }
 
                 if (max_j >= -1) {
-                    next_wf_array_m.push_back_state(node_id, min_k, max_j);
+                    // if (visited_map_m.update_and_check(WavefrontArray::calc_vk(node_id, min_k), max_j)) {
+                        next_wf_array_m.push_back_state(node_id, min_k, max_j);
+                    // }
                 }
             }
         }

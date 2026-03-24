@@ -137,16 +137,22 @@ void PatriciaWFA<CostType>::extend(
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;
-                    buffer[code - 1].push_back_state(child, new_k, -1);
-                    buffer_used = true;
+                    // if (visited_map.update_and_check(WavefrontArray::calc_vk(child, new_k), -1)) {
+                        buffer[code - 1].push_back_state(child, new_k, -1);
+                        buffer_used = true;
+                    // }
                 }
             }
             
             if (_patricia_tree.is_terminal(node_id)) {
-                next_wf_array.push_back_state(node_id, k, j);
+                if (visited_map.update_and_check(current_vk, j)) {
+                    next_wf_array.push_back_state(node_id, k, j);
+                }
             }
         } else {
-            next_wf_array.push_back_state(node_id, k, j);
+            if (visited_map.update_and_check(current_vk, j)) {
+                next_wf_array.push_back_state(node_id, k, j);
+            }
         }
         if (wf_array_idx_increment) {
             ++wf_array_idx;
