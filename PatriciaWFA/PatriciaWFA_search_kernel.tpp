@@ -86,10 +86,10 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
 
         // 終端チェック: クエリ全体が処理されたノードを探す
         for (size_t idx = 0; idx < curr_wf.active_size(); ++idx) {
-            const WavefrontArray::DiagState &state = curr_wf[idx];
-            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
-            int32_t k = WavefrontArray::calc_k_from_vk(state.vk);
-            int32_t j = state.offset;
+            uint64_t curr_vk = curr_wf.get_vk(idx);
+            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(curr_vk);
+            int32_t k = WavefrontArray::calc_k_from_vk(curr_vk);
+            int32_t j = curr_wf.get_offset(idx);
             int32_t i = k + j;
 
             if (i + 1 == query_length) {  // クエリ終端に到達
@@ -248,10 +248,10 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
 
         // 終端チェック: クエリ全体が処理されたノードを探す
         for (size_t idx = 0; idx < curr_wf_m.active_size(); ++idx) {
-            const WavefrontArray::DiagState &state = curr_wf_m[idx];
-            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(state.vk);
-            int32_t k = WavefrontArray::calc_k_from_vk(state.vk);
-            int32_t j = state.offset;
+            uint64_t curr_vk = curr_wf_m.get_vk(idx);
+            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(curr_vk);
+            int32_t k = WavefrontArray::calc_k_from_vk(curr_vk);
+            int32_t j = curr_wf_m.get_offset(idx);
             int32_t i = k + j;
 
             if (i + 1 == query_length) {  // クエリ終端に到達

@@ -32,16 +32,14 @@ void PatriciaWFA<CostType>::extend(
         bool child_idx_increment = false;
 
         // === ステップ1: 次に処理する状態を選択 ===
-        WavefrontArray::DiagState current_state;
+        uint64_t current_vk;
+        int32_t current_offset;
         if (child_idx >= child_wf_array.active_size() && wf_array_idx >= wf_array.active_size()) {
             // bufferのみ残っている場合
             for (const auto& buf : buffer) {
                 for (size_t i = 0; i < buf.active_size(); ++i) {
-                    const auto& state = buf[i];
-                    child_wf_array.push_back_state(WavefrontArray::calc_node_id_from_vk(state.vk),
-                                        WavefrontArray::calc_k_from_vk(state.vk),
-                                        state.offset);
-                                        
+                    child_wf_array.push_back_state(buf.get_vk(i),
+                                        buf.get_offset(i));
                 }
             }
             for (auto &buf : buffer) {
@@ -52,41 +50,43 @@ void PatriciaWFA<CostType>::extend(
         }
 
         if (child_idx >= child_wf_array.active_size()) {
-            current_state = wf_array[wf_array_idx];
+            current_vk = wf_array.get_vk(wf_array_idx);
+            current_offset = wf_array.get_offset(wf_array_idx);
             wf_array_idx_increment = true;
         } else if (wf_array_idx >= wf_array.active_size()) {
-            current_state = child_wf_array[child_idx];
+            current_vk = child_wf_array.get_vk(child_idx);
+            current_offset = child_wf_array.get_offset(child_idx);
             child_idx_increment = true;
         } else {
-            const auto wf_state = wf_array[wf_array_idx];
-            const auto child_state = child_wf_array[child_idx];
+            const uint64_t wf_vk = wf_array.get_vk(wf_array_idx);
+            const uint64_t child_vk = child_wf_array.get_vk(child_idx);
             
-            if (wf_state.vk < child_state.vk) {
-                current_state = wf_state;
+            if (wf_vk < child_vk) {
+                current_vk = wf_vk;
+                current_offset = wf_array.get_offset(wf_array_idx);
                 wf_array_idx_increment = true;
-            } else if (wf_state.vk > child_state.vk) {
-                current_state = child_state;
+            } else if (wf_vk > child_vk) {
+                current_vk = child_vk;
+                current_offset = child_wf_array.get_offset(child_idx);
                 child_idx_increment = true;
             } else {
                 // vk が同じ → offset が大きい方を採用
-                current_state = (wf_state.offset >= child_state.offset) ? wf_state : child_state;
+                current_vk = wf_vk;
+                current_offset = std::max(wf_array.get_offset(wf_array_idx), child_wf_array.get_offset(child_idx));
                 wf_array_idx_increment = true;
                 child_idx_increment = true;
             }
         }
         
         // === ステップ2: node_idが変わったらbufferを処理 ===
-        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(current_state.vk);
-        
+        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(current_vk); 
         if (node_id != last_node_id && buffer_used) {
             // bufferはソート済み
             // (BFS順により child_wf_arrayの末尾 < bufferの最小値 が保証される)
             for (const auto& buf : buffer) {
                 for (size_t i = 0; i < buf.active_size(); ++i) {
-                    const auto& state = buf[i];
-                    child_wf_array.push_back_state(WavefrontArray::calc_node_id_from_vk(state.vk),
-                                        WavefrontArray::calc_k_from_vk(state.vk),
-                                        state.offset);
+                    child_wf_array.push_back_state(buf.get_vk(i),
+                                        buf.get_offset(i));
                 }
             }
             for (auto &buf : buffer) {
@@ -97,26 +97,29 @@ void PatriciaWFA<CostType>::extend(
             // これによってchild_wf_arrayに追加された値の方がwf_arrayの値より小さいかもしれない
             // child_idx_incrementが立っていない = child_idxの値はチェックされていない可能性がある
             if (!child_idx_increment) {
-                const auto child_state = child_wf_array[child_idx];
-                if (child_state.vk < current_state.vk) {
-                    current_state = child_state;
+                const uint64_t child_vk = child_wf_array.get_vk(child_idx);
+                const int32_t child_offset = child_wf_array.get_offset(child_idx);
+                if (child_vk < current_vk) {
+                    current_vk = child_vk;
+                    current_offset = child_offset;
                     child_idx_increment = true;
                     wf_array_idx_increment = false;
-                } else if (child_state.vk == current_state.vk) {
-                    if (child_state.offset > current_state.offset) {
-                        current_state = child_state;
+                } else if (child_vk == current_vk) {
+                    if (child_offset > current_offset) {
+                        current_vk = child_vk;
+                        current_offset = child_offset;
                     }
                     child_idx_increment = true;
                     wf_array_idx_increment = true;
                 }
-                node_id = WavefrontArray::calc_node_id_from_vk(current_state.vk);
+                node_id = WavefrontArray::calc_node_id_from_vk(current_vk);
             }
         }
         last_node_id = node_id;
         
         // === ステップ3: Extension 処理 ===
-        int32_t k = WavefrontArray::calc_k_from_vk(current_state.vk);
-        int32_t j = current_state.offset;
+        int32_t k = WavefrontArray::calc_k_from_vk(current_vk);
+        int32_t j = current_offset;
         int32_t i = k + j;
         
         std::string_view label = _patricia_tree.get_label(node_id);
@@ -143,7 +146,6 @@ void PatriciaWFA<CostType>::extend(
                 next_wf_array.push_back_state(node_id, k, j);
             }
         } else {
-            // ノード内で停止  ここで順序逆転起きる可能性あり
             next_wf_array.push_back_state(node_id, k, j);
         }
         if (wf_array_idx_increment) {

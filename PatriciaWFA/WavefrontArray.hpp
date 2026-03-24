@@ -70,17 +70,47 @@ public:
     void push_back_state(uint32_t node_id, int32_t k, int32_t offset) {
         const uint64_t vk = calc_vk(node_id, k);
 
-        if (_active_size > 0 && _vks[_active_size - 1] == vk) {
+        if (_active_size > 0 && _vks[_active_size - 1] == vk) {//[NOTE]ここのif文まるごと削除しても良さそう。後で確認
+            std::cout << "Dump" << std::endl;
+            for (size_t i = 0; i < _active_size; ++i) {
+                uint32_t existing_node_id = calc_node_id_from_vk(_vks[i]);
+                int32_t existing_k = calc_k_from_vk(_vks[i]);
+                int32_t existing_offset = _offsets[i];
+                std::cout << "  State " << i << ": (node_id=" << existing_node_id 
+                          << ", k=" << existing_k << ", offset=" << existing_offset << ")\n";
+            }
+            std::cout << "Attempting to add duplicate state: (node_id=" << node_id << ", k=" << k << ", offset=" << offset << ")\n";
             if (offset > _offsets[_active_size - 1]) {
                 _offsets[_active_size - 1] = offset;
             }
             // This warning is for debugging purposes to detect unintended duplicate insertions.
             // This line will be removed in the future
+            
             std::cout << "[WARN] Duplicate state detected in WavefrontArray::push_back_state. Merging offsets.\n";
             return;
         }
 
         // 既存の確保済みキャパシティの再利用、または新規追加
+        if (_active_size < _vks.size()) {
+            _vks[_active_size] = vk;
+            _offsets[_active_size] = offset;
+        } else {
+            _vks.push_back(vk);
+            _offsets.push_back(offset);
+        }
+        
+        ++_active_size;
+    }
+
+    void push_back_state(uint64_t vk, int32_t offset) {
+        if (_active_size > 0 && _vks[_active_size - 1] == vk) {// [NOTE]ここも確認
+            if (offset > _offsets[_active_size - 1]) {
+                _offsets[_active_size - 1] = offset;
+            }
+            std::cout << "[WARN] Duplicate state detected in WavefrontArray::push_back_state2. Merging offsets.\n";
+            return;
+        }
+
         if (_active_size < _vks.size()) {
             _vks[_active_size] = vk;
             _offsets[_active_size] = offset;
@@ -170,36 +200,6 @@ public:
     static uint64_t calc_vk(uint32_t node_id, int32_t k) {
         return (static_cast<uint64_t>(node_id) << 32) | (static_cast<uint64_t>(k + DIAGONAL_OFFSET) & DIAGONAL_MASK);
     }
-
-    // Plan to delete below
-    
-    struct DiagState {
-        uint64_t vk;  // 32bit (node_id) + 32bit (diagonal + 0x40000000)
-        int32_t offset;  // position of label at node_id
-        // [NOTE]tracebackをするなら、直前の状態を保存する変数を置く
-        // [NOTE]diagonalはi-jだが、pruningのためにanti-diagonal i+jもgwfaにはあった
-
-        static constexpr uint64_t DIAGONAL_MASK = 0xFFFFFFFF;
-        static constexpr int32_t DIAGONAL_OFFSET = 0x40000000;
-
-        DiagState() = default;
-        DiagState(uint64_t vk_, int32_t offset_) : vk(vk_), offset(offset_) {}
-        DiagState(uint32_t node_id, int32_t k, int32_t offset_) 
-            : vk((static_cast<uint64_t>(node_id) << 32) | static_cast<uint32_t>(k + DIAGONAL_OFFSET)), 
-              offset(offset_) {}
-
-        bool operator<(const DiagState& other) const {
-            return vk < other.vk;
-        }
-    };
-
-    const DiagState& operator[](size_t index) const {
-        static DiagState temp_state;  // This is not thread-safe. Be cautious if using in a multi-threaded context.
-        temp_state.vk = _vks[index];
-        temp_state.offset = _offsets[index];
-        return temp_state;
-    }
-
 };
 
 inline void WavefrontArray::sort_and_deduplicate() {
