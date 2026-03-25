@@ -11,8 +11,7 @@ void PatriciaWFA<CostType>::expand(
     WavefrontArray &next_wf_array,
     int32_t curr_idx,
     size_t history_size,
-    const std::vector<uint32_t> &active_counts,
-    DynamicEpochHashMap<> &visited_map) const requires (CostType::is_linear) {
+    const std::vector<uint32_t> &active_counts) const requires (CostType::is_linear) {
     next_wf_array.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
     // current_score + 1 に対応する WavefrontArray を構築する
@@ -247,10 +246,7 @@ void PatriciaWFA<CostType>::expand(
     const std::vector<uint32_t> &active_counts,
     std::array<WavefrontArray, 5> &pending_d_buffer,
     WavefrontArray &pending_d,
-    WavefrontArray &merged_wf_array_d,
-    DynamicEpochHashMap<> &visited_map_d,
-    DynamicEpochHashMap<> &visited_map_m,
-    DynamicEpochHashMap<> &visited_map_i) const requires (!CostType::is_linear) {
+    WavefrontArray &merged_wf_array_d) const requires (!CostType::is_linear) {
     next_wf_array_d.clear_logical_size();
     next_wf_array_m.clear_logical_size();
     next_wf_array_i.clear_logical_size();
@@ -343,10 +339,8 @@ void PatriciaWFA<CostType>::expand(
                         for (uint8_t code = 1; code <= 5; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
-                                if (visited_map_d.update_and_check(WavefrontArray::calc_vk(child, next_k), 0)) {
-                                    pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
-                                    has_pending_d = true;
-                                }
+                                pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
+                                has_pending_d = true;
                             }
                         }
                     }
@@ -365,9 +359,7 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    if (visited_map_d.update_and_check(WavefrontArray::calc_vk(node_id, min_k), max_j)) {
-                        next_wf_array_d.push_back_state(node_id, min_k, max_j);
-                    }
+                    next_wf_array_d.push_back_state(node_id, min_k, max_j);
                 }
             }
         }
@@ -409,9 +401,7 @@ void PatriciaWFA<CostType>::expand(
 
                 // 3. 結果の登録
                 if (max_j >= -1) {
-                    if (visited_map_i.update_and_check(WavefrontArray::calc_vk(node_id, min_k), max_j)) {
-                        next_wf_array_i.push_back_state(node_id, min_k, max_j);
-                    }
+                    next_wf_array_i.push_back_state(node_id, min_k, max_j);
                 }
             }
         }

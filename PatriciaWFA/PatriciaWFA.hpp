@@ -5,7 +5,6 @@
 #include "WavefrontArray.hpp"
 #include "utils.hpp"
 #include "CostType.hpp"
-#include "DynamicEpochHashMap.hpp"
 
 #include <iostream>
 #include <vector>
@@ -94,8 +93,7 @@ class PatriciaWFA {
                     WavefrontArray &next_wf_array,
                     WavefrontArray &child_wf_array,
                     std::array<WavefrontArray, 5> &buffer,
-                    const std::vector<uint32_t> &active_counts,
-                    DynamicEpochHashMap<> &visited_map
+                    const std::vector<uint32_t> &active_counts
                 ) const;
     
     void expand(const std::string_view query,
@@ -103,9 +101,7 @@ class PatriciaWFA {
                     WavefrontArray &next_wf_array,
                     int32_t curr_idx,
                     size_t history_size,
-                    const std::vector<uint32_t> &active_counts,
-                    DynamicEpochHashMap<> &visited_map
-
+                    const std::vector<uint32_t> &active_counts
                 ) const requires (CostType::is_linear);
 
     void expand(const std::string_view query,
@@ -120,10 +116,7 @@ class PatriciaWFA {
                     const std::vector<uint32_t> &active_counts,
                     std::array<WavefrontArray, 5> &pending_d_buffer,
                     WavefrontArray &pending_d,
-                    WavefrontArray &merged_wf_array_d,
-                    DynamicEpochHashMap<> &visited_map_d,
-                    DynamicEpochHashMap<> &visited_map_m,
-                    DynamicEpochHashMap<> &visited_map_i
+                    WavefrontArray &merged_wf_array_d
                 ) const requires (!CostType::is_linear);
 };
 

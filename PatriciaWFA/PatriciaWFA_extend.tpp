@@ -10,8 +10,7 @@ void PatriciaWFA<CostType>::extend(
     WavefrontArray &next_wf_array,
     WavefrontArray &child_wf_array,
     std::array<WavefrontArray, 5> &buffer,
-    const std::vector<uint32_t> &active_counts,
-    DynamicEpochHashMap<> &visited_map) const {
+    const std::vector<uint32_t> &active_counts) const {
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
 
@@ -145,14 +144,10 @@ void PatriciaWFA<CostType>::extend(
             }
             
             if (_patricia_tree.is_terminal(node_id)) {
-                if (visited_map.update_and_check(current_vk, j)) {
-                    next_wf_array.push_back_state(node_id, k, j);
-                }
-            }
-        } else {
-            if (visited_map.update_and_check(current_vk, j)) {
                 next_wf_array.push_back_state(node_id, k, j);
             }
+        } else {
+            next_wf_array.push_back_state(node_id, k, j);
         }
         if (wf_array_idx_increment) {
             ++wf_array_idx;

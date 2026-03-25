@@ -11,8 +11,6 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     int upper_bound)
     const requires (CostType::is_linear) {
 
-    DynamicEpochHashMap<> visited_map;
-    
     std::vector<AlignmentResult> results;
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();
@@ -72,7 +70,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 2: GwfExtend
-        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts, visited_map);
+        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts);
         
         if (upper_bound >= 0) {
             prune_by_upper_bound(
@@ -127,7 +125,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 3: GwfExpand
-        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts, visited_map);
+        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts);
 
         if (upper_bound >= 0) {
             prune_by_upper_bound(
@@ -155,10 +153,6 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     int upper_bound)
     const requires (!CostType::is_linear) {
     (void)upper_bound;  // 未使用
-
-    DynamicEpochHashMap<> visited_map_d;
-    DynamicEpochHashMap<> visited_map_m;
-    DynamicEpochHashMap<> visited_map_i;
 
     std::vector<AlignmentResult> results;
 
@@ -233,7 +227,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         // Algorithm 2: GwfExtend
-        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts, visited_map_m);
+        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts);
         if (upper_bound >= 0) {
             prune_by_upper_bound<true>(
                 next_wf_array_d,
@@ -291,8 +285,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         // Algorithm 3: GwfExpand
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
-            curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d,
-            visited_map_d, visited_map_m, visited_map_i);
+            curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
                 wf_history_d[(current_score + 1) % history_size],
