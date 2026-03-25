@@ -477,6 +477,7 @@ void PatriciaWFA<CostType>::expand(
         // マージ結果を next_wf_array_d に O(1) でスワップ
         next_wf_array_d.swap(merged_wf_array_d);
         merged_wf_array_d.clear_logical_size();
+        pending_d.clear_logical_size();
     }
 
     wf_history_d[(curr_idx + 1) % history_size].swap(next_wf_array_d);

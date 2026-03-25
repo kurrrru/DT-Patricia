@@ -71,15 +71,6 @@ public:
         const uint64_t vk = calc_vk(node_id, k);
 
         if (_active_size > 0 && _vks[_active_size - 1] == vk) {//[NOTE]ここのif文まるごと削除しても良さそう。後で確認
-            std::cout << "Dump" << std::endl;
-            for (size_t i = 0; i < _active_size; ++i) {
-                uint32_t existing_node_id = calc_node_id_from_vk(_vks[i]);
-                int32_t existing_k = calc_k_from_vk(_vks[i]);
-                int32_t existing_offset = _offsets[i];
-                std::cout << "  State " << i << ": (node_id=" << existing_node_id 
-                          << ", k=" << existing_k << ", offset=" << existing_offset << ")\n";
-            }
-            std::cout << "Attempting to add duplicate state: (node_id=" << node_id << ", k=" << k << ", offset=" << offset << ")\n";
             if (offset > _offsets[_active_size - 1]) {
                 _offsets[_active_size - 1] = offset;
             }
