@@ -67,7 +67,7 @@ public:
     
     // Appends a wavefront element to the end of the arrays and increments the logical size (alternative to vector::push_back).
     // Internally writes values to both _vks and _offsets.
-    inline void push_back_state(uint32_t node_id, int32_t k, int32_t offset) {
+    void push_back_state(uint32_t node_id, int32_t k, int32_t offset) {
         const uint64_t vk = calc_vk(node_id, k);
 
         if (_active_size > 0 && _vks[_active_size - 1] == vk) {//[NOTE]ここのif文まるごと削除しても良さそう。後で確認
@@ -93,7 +93,7 @@ public:
         ++_active_size;
     }
 
-    inline void push_back_state(uint64_t vk, int32_t offset) {
+    void push_back_state(uint64_t vk, int32_t offset) {
         if (_active_size > 0 && _vks[_active_size - 1] == vk) {// [NOTE]ここも確認
             if (offset > _offsets[_active_size - 1]) {
                 _offsets[_active_size - 1] = offset;

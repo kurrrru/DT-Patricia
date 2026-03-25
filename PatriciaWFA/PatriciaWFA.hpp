@@ -123,3 +123,4 @@ class PatriciaWFA {
 #include "PatriciaWFA_search_kernel.tpp"
 #include "PatriciaWFA_extend.tpp"
 #include "PatriciaWFA_expand.tpp"
+#include "PatriciaWFA_pruning.tpp"
