@@ -9,7 +9,7 @@ void PatriciaWFA<CostType>::extend(
     WavefrontArray &wf_array,
     WavefrontArray &next_wf_array,
     WavefrontArray &child_wf_array,
-    std::array<WavefrontArray, 5> &buffer,
+    std::array<WavefrontArray, PatriciaTree::CODE_MAX> &buffer,
     const std::vector<uint32_t> &active_counts) const {
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
@@ -132,7 +132,8 @@ void PatriciaWFA<CostType>::extend(
         // === ステップ4: 子ノードへの遷移 or next_wf_array への追加 ===
         if (j + 1 == label_len) {
             // ノード終端に到達 → 子ノードをbufferに追加
-            for (uint8_t code = 1; code <= 5; ++code) {
+            #pragma GCC unroll 5
+            for (uint8_t code = 1; code <= PatriciaTree::CODE_MAX; ++code) {
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;

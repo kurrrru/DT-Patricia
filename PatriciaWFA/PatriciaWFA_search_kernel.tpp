@@ -42,7 +42,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     // WavefrontArray wf_array;
     WavefrontArray next_wf_array;
     WavefrontArray child_wf_array;
-    std::array<WavefrontArray, 5> buffer;
+    std::array<WavefrontArray, PatriciaTree::CODE_MAX> buffer;
     
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     uint32_t root = _patricia_tree.root_id();
@@ -182,7 +182,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     WavefrontArray next_wf_array_m;
     WavefrontArray next_wf_array_i;
     WavefrontArray child_wf_array;
-    std::array<WavefrontArray, 5> buffer;
+    std::array<WavefrontArray, PatriciaTree::CODE_MAX> buffer;
 
     WavefrontArray pending_d;
     WavefrontArray merged_wf_array_d;

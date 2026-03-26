@@ -244,7 +244,7 @@ void PatriciaWFA<CostType>::expand(
     int32_t curr_idx,
     size_t history_size, 
     const std::vector<uint32_t> &active_counts,
-    std::array<WavefrontArray, 5> &pending_d_buffer,
+    std::array<WavefrontArray, PatriciaTree::CODE_MAX> &pending_d_buffer,
     WavefrontArray &pending_d,
     WavefrontArray &merged_wf_array_d) const requires (!CostType::is_linear) {
     next_wf_array_d.clear_logical_size();
@@ -336,7 +336,8 @@ void PatriciaWFA<CostType>::expand(
                         // 次の k = i - next_j = (current_k + offset) - (-1) = current_k + offset + 1
                         int32_t next_k = current_k + st_offset;
 
-                        for (uint8_t code = 1; code <= 5; ++code) {
+                        #pragma GCC unroll 5
+                        for (uint8_t code = 1; code <= PatriciaTree::CODE_MAX; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
                                 pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
@@ -407,7 +408,8 @@ void PatriciaWFA<CostType>::expand(
         }
 
         if (has_pending_d) {
-            for (int i = 0; i < 5; ++i) {
+            #pragma GCC unroll 5
+            for (int i = 0; i < PatriciaTree::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
                     pending_d.push_back_state(
                         pending_d_buffer[i].get_vk(j),

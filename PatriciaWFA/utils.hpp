@@ -23,6 +23,13 @@
 inline size_t fast_lcp(const char* s1, const char* s2, size_t max_len) {
     size_t matched = 0;
 
+    if (max_len < 8) {
+        while (matched < max_len && s1[matched] == s2[matched]) {
+            matched++;
+        }
+        return matched;
+    }
+
 #if defined(__AVX2__)
     // =========================================================
     // Windows / x86_64 環境 (AVX2: 32バイト一括処理)

@@ -12,6 +12,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
     int upper_bound_remain
     ) const requires (CostType::is_linear) {
     size_t write_idx = 0;
+    const int32_t max_diff = upper_bound_remain / static_cast<int32_t>(_cost.gap);
     for (size_t i = 0; i < wf_array.active_size(); i++) {
         const uint64_t vk = wf_array.get_vk(i);
         uint32_t node_id = WavefrontArray::calc_node_id_from_vk(vk);
@@ -21,10 +22,10 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
         int32_t max_remain = subtree_max_lengths[node_id] - (j_pos + 1);
         int32_t min_remain = subtree_min_lengths[node_id] - (j_pos + 1);
         int32_t query_remain = query_length - (i_pos + 1);
-        if ((query_remain - max_remain) * static_cast<int32_t>(_cost.gap) <= upper_bound_remain &&
-            (min_remain - query_remain) * static_cast<int32_t>(_cost.gap) <= upper_bound_remain) {
+        if ((query_remain - max_remain) <= max_diff &&
+            (min_remain - query_remain) <= max_diff) {
             if (write_idx != i) {
-                wf_array.update_state(write_idx, node_id, k, j_pos);
+                wf_array.update_state(write_idx, vk, j_pos);
             }
             write_idx++;
         }
@@ -77,7 +78,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
 
             if (lb <= upper_bound_remain) {
                 if (write_idx != i) {
-                    wf.update_state(write_idx, node_id, v_k, j_pos);
+                    wf.update_state(write_idx, vk, j_pos);
                 }
                 write_idx++;
             }
