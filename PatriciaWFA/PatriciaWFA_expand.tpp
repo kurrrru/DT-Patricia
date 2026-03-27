@@ -106,11 +106,11 @@ void PatriciaWFA<CostType>::expand(
             idx = end_idx;
         }
         // 次の探索セルとして追加
-        wf_history[(curr_idx + 1) % history_size].swap(next_wf_array);
+        wf_history[add_mod(curr_idx, 1, history_size)].swap(next_wf_array);
     } else {
-        size_t wf_history_idx_d = (curr_idx + 1 + history_size - _cost.gap) % history_size;
-        size_t wf_history_idx_s = (curr_idx + 1 + history_size - _cost.mismatch) % history_size;
-        size_t wf_history_idx_i = (curr_idx + 1 + history_size - _cost.gap) % history_size;
+        size_t wf_history_idx_d = sub_mod(curr_idx + 1, _cost.gap, history_size);
+        size_t wf_history_idx_s = sub_mod(curr_idx + 1, _cost.mismatch, history_size);
+        size_t wf_history_idx_i = sub_mod(curr_idx + 1, _cost.gap, history_size);
 
         WavefrontArray &wf_array_d = wf_history[wf_history_idx_d];
         WavefrontArray &wf_array_s = wf_history[wf_history_idx_s];
@@ -228,7 +228,7 @@ void PatriciaWFA<CostType>::expand(
             start_idx_s = end_idx_s;
             start_idx_i = end_idx_i;
         }
-        wf_history[(curr_idx + 1) % history_size].swap(next_wf_array);
+        wf_history[add_mod(curr_idx, 1, history_size)].swap(next_wf_array);
     }
 }
 
@@ -252,10 +252,11 @@ void PatriciaWFA<CostType>::expand(
     next_wf_array_i.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
     
+    const uint32_t next_idx = add_mod(curr_idx, 1, history_size);
     // current_score + 1 に対応する WavefrontArray を構築する
-    size_t wf_history_idx_d = (curr_idx + 1 + history_size - _cost.gap_extend) % history_size;
-    size_t wf_history_idx_m = (curr_idx + 1 + history_size - _cost.gap_open - _cost.gap_extend) % history_size;
-    size_t wf_history_idx_i = (curr_idx + 1 + history_size - _cost.gap_extend) % history_size;
+    size_t wf_history_idx_d = sub_mod(next_idx, _cost.gap_extend, history_size);
+    size_t wf_history_idx_m = sub_mod(next_idx, _cost.gap_open + _cost.gap_extend, history_size);
+    size_t wf_history_idx_i = sub_mod(next_idx, _cost.gap_extend, history_size);
 
     WavefrontArray &wf_array_d = wf_history_d[wf_history_idx_d];
     WavefrontArray &wf_array_m = wf_history_m[wf_history_idx_m];
@@ -472,13 +473,14 @@ void PatriciaWFA<CostType>::expand(
         pending_d.clear_logical_size();
     }
 
-    wf_history_d[(curr_idx + 1) % history_size].swap(next_wf_array_d);
-    wf_history_i[(curr_idx + 1) % history_size].swap(next_wf_array_i);
+
+    wf_history_d[next_idx].swap(next_wf_array_d);
+    wf_history_i[next_idx].swap(next_wf_array_i);
 
     // match/mismatch のみを見る
-    wf_history_idx_d = (curr_idx + 1) % history_size;
-    wf_history_idx_m = (curr_idx + 1 + history_size - _cost.mismatch) % history_size;
-    wf_history_idx_i = (curr_idx + 1) % history_size;
+    wf_history_idx_d = next_idx;
+    wf_history_idx_m = sub_mod(next_idx, _cost.mismatch, history_size);
+    wf_history_idx_i = next_idx;
 
     WavefrontArray &wf_array_dm = wf_history_d[wf_history_idx_d];
     WavefrontArray &wf_array_mm = wf_history_m[wf_history_idx_m];
@@ -578,5 +580,5 @@ void PatriciaWFA<CostType>::expand(
         start_idx_m = end_idx_m;
         start_idx_i = end_idx_i;
     }
-    wf_history_m[(curr_idx + 1) % history_size].swap(next_wf_array_m);
+    wf_history_m[next_idx].swap(next_wf_array_m);
 }

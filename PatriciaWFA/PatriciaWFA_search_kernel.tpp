@@ -29,9 +29,9 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
 
-    std::vector<bool> found_string_ids(_patricia_tree.size(), false);
+    std::vector<bool> found_string_ids(_patricia_tree.string_count(), false);
     
-    size_t history_size;
+    uint32_t history_size;
     if constexpr (CostType::is_unit) {  // Simple Edit Distances
         history_size = 2;
     } else {  // Linear
@@ -49,11 +49,10 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     wf_history[0].push_back_state(root, 0, -1);
     
     int32_t current_score = 0;  // 現在の編集距離
+    uint32_t curr_idx = 0;
     
     // Algorithm 1: GwfEditDist のメインループ
     while (true) {
-
-        size_t curr_idx = current_score % history_size;
         WavefrontArray &curr_wf = wf_history[curr_idx];
 
         if (curr_wf.empty()) {
@@ -127,9 +126,10 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         // Algorithm 3: GwfExpand
         expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts);
 
+        uint32_t next_idx = increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound(
-                wf_history[(current_score + 1) % history_size],
+                wf_history[next_idx],
                 subtree_max_lengths,
                 subtree_min_lengths,
                 query_length,
@@ -138,9 +138,11 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         ++current_score;
+        curr_idx = next_idx;
+        next_idx = increment_mod(next_idx, history_size);
 
         // 以降のループで使うことはないので履歴をリセット
-        wf_history[(current_score + 1) % history_size].clear_logical_size();
+        wf_history[next_idx].clear_logical_size();
     }
     return results;
 }
@@ -170,9 +172,9 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
     
-    std::vector<bool> found_string_ids(_patricia_tree.size(), false);
+    std::vector<bool> found_string_ids(_patricia_tree.string_count(), false);
     
-    size_t history_size = std::max({ _cost.mismatch, _cost.gap_open + _cost.gap_extend, _cost.gap_extend }) + 1;
+    uint32_t history_size = std::max({ _cost.mismatch, _cost.gap_open + _cost.gap_extend, _cost.gap_extend }) + 1;
 
     std::vector<WavefrontArray> wf_history_d(history_size);
     std::vector<WavefrontArray> wf_history_m(history_size);
@@ -192,10 +194,10 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     wf_history_m[0].push_back_state(root, 0, -1);
     
     int32_t current_score = 0;  // 現在の編集距離
+    uint32_t curr_idx = 0;
     
     // Algorithm 1: GwfEditDist のメインループ
     while (true) {
-        size_t curr_idx = current_score % history_size;
         WavefrontArray &curr_wf_m = wf_history_m[curr_idx];
         if (curr_wf_m.empty()) {
             bool any_nonempty = false;
@@ -286,11 +288,12 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
             curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d);
+        uint32_t next_idx = increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
-                wf_history_d[(current_score + 1) % history_size],
-                wf_history_m[(current_score + 1) % history_size],
-                wf_history_i[(current_score + 1) % history_size],
+                wf_history_d[next_idx],
+                wf_history_m[next_idx],
+                wf_history_i[next_idx],
                 _patricia_tree.get_subtree_max_lengths(),
                 _patricia_tree.get_subtree_min_lengths(),
                 query_length,
@@ -299,11 +302,13 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
         }
 
         ++current_score;
+        curr_idx = next_idx;
+        next_idx = increment_mod(next_idx, history_size);
 
         // 以降のループで使うことはないので履歴をリセット
-        wf_history_d[(current_score + 1) % history_size].clear_logical_size();
-        wf_history_m[(current_score + 1) % history_size].clear_logical_size();
-        wf_history_i[(current_score + 1) % history_size].clear_logical_size();
+        wf_history_d[next_idx].clear_logical_size();
+        wf_history_m[next_idx].clear_logical_size();
+        wf_history_i[next_idx].clear_logical_size();
     }
     return results;
 }

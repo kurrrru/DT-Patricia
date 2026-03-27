@@ -21,7 +21,7 @@ public:
     ~PatriciaTree() = default;
 
     // コピー
-    // [NOTE]辞書は大きくなるので、コピーは一旦禁止しておく
+    // 辞書は大きくなるので、コピーは禁止する
     PatriciaTree(const PatriciaTree&) = delete;
     PatriciaTree &operator=(const PatriciaTree&) = delete;
 
@@ -97,8 +97,7 @@ public:
         return std::span<const uint32_t>(_string_ids.data() + offset, count);
     }
 
-    // [TODO]: string_count()という名前の方が良い
-    [[nodiscard]] inline uint32_t size() const noexcept {
+    [[nodiscard]] inline uint32_t string_count() const noexcept {
         return _size;
     }
 

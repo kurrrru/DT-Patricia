@@ -14,10 +14,6 @@ void PatriciaWFA<CostType>::extend(
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
 
-    //[NOTE] ここにおいてbufferは常に空かも、検討後に削除するかもしれない
-    for (auto &buf : buffer) {
-        buf.clear_logical_size();
-    }
     bool buffer_used = false;
     
     const int32_t query_length = static_cast<int32_t>(query.length());

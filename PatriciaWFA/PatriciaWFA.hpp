@@ -3,8 +3,9 @@
 #include "PatriciaTree.hpp"
 #include "AlignmentResult.hpp"
 #include "WavefrontArray.hpp"
-#include "utils.hpp"
+#include "FastLCP.hpp"
 #include "CostType.hpp"
+#include "mod_utils.hpp"
 
 #include <iostream>
 #include <vector>
@@ -46,18 +47,18 @@ class PatriciaWFA {
     // =========================================================
 
     std::vector<AlignmentResult> ed_to_all(const std::string &query) const {
-        std::size_t max_results = _patricia_tree.size();
+        std::size_t max_results = _patricia_tree.string_count();
         return search_kernel(query, [max_results](int, const auto& r){ return r.size() == max_results; }, -1);
     }
 
     std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const {
-        std::size_t max_results = _patricia_tree.size();
+        std::size_t max_results = _patricia_tree.string_count();
         return search_kernel(query, [k, max_results](int current_score, const auto& r){ return current_score >= k || r.size() == max_results; }, k);
     }
 
     std::vector<AlignmentResult> ed_kth_smallest(const std::string &query, size_t k) const {
-        if (k > _patricia_tree.size()) {
-            k = _patricia_tree.size();
+        if (k > _patricia_tree.string_count()) {
+            k = _patricia_tree.string_count();
         }
         return search_kernel(query, [k](int, const auto& r){ return r.size() >= k; }, -1);
     }
