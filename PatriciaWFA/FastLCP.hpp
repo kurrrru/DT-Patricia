@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <bit>
 #include <algorithm>
 
@@ -92,8 +93,9 @@ inline size_t fast_lcp(const char* s1, const char* s2, size_t max_len) {
     // AVX2もNEONも有効でない場合の安全網
     // =========================================================
     while (matched < max_len) {
-        uint64_t v1 = *reinterpret_cast<const uint64_t*>(s1 + matched);
-        uint64_t v2 = *reinterpret_cast<const uint64_t*>(s2 + matched);
+        uint64_t v1, v2;
+        std::memcpy(&v1, s1 + matched, sizeof(uint64_t));
+        std::memcpy(&v2, s2 + matched, sizeof(uint64_t));
         
         uint64_t diff = v1 ^ v2;
         if (diff != 0) {
@@ -101,7 +103,7 @@ inline size_t fast_lcp(const char* s1, const char* s2, size_t max_len) {
             matched += std::countr_zero(diff) / 8;
             return std::min(matched, max_len);
         }
-        matched += 8;
+        matched += sizeof(uint64_t);
     }
 #endif
 
