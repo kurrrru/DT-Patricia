@@ -102,7 +102,8 @@ class PatriciaWFA {
                     WavefrontArray &next_wf_array,
                     int32_t curr_idx,
                     size_t history_size,
-                    const std::vector<uint32_t> &active_counts
+                    const std::vector<uint32_t> &active_counts,
+                    std::vector<int32_t> &expand_scratch
                 ) const requires (CostType::is_linear);
 
     void expand(const std::string_view query,
@@ -117,7 +118,8 @@ class PatriciaWFA {
                     const std::vector<uint32_t> &active_counts,
                     std::array<WavefrontArray, 5> &pending_d_buffer,
                     WavefrontArray &pending_d,
-                    WavefrontArray &merged_wf_array_d
+                    WavefrontArray &merged_wf_array_d,
+                    std::vector<int32_t> &expand_scratch
                 ) const requires (!CostType::is_linear);
 };
 

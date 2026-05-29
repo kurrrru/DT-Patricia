@@ -1,8 +1,10 @@
 .vscode/
 .DS_Store
-
+WFA2-lib/
 # Prerequisites
 *.d
+*.md
+!README.md
 
 # Compiled Object files
 *.slo
