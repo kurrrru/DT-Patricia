@@ -1,11 +1,11 @@
-#include "PatriciaWFA.hpp"
+#include "DT-Patricia.hpp"
 
 // =========================================================
 // テンプレート関数の実装
 // =========================================================
 template <typename CostType>
 template <typename StopPredicate>
-std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
+std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     const std::string &query,
     StopPredicate stop_predicate,
     int upper_bound)
@@ -51,7 +51,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     int32_t current_score = 0;  // 現在の編集距離
     uint32_t curr_idx = 0;
 
-    // Algorithm 1: GwfEditDist のメインループ
+    // Algorithm 1: DT-Patricia のメインループ
     while (true) {
         WavefrontArray &curr_wf = wf_history[curr_idx];
 
@@ -68,7 +68,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
             }
         }
 
-        // Algorithm 2: GwfExtend
+        // Algorithm 2: DT-Patricia Extend
         extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts);
 
         if (upper_bound >= 0) {
@@ -123,7 +123,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
             break;
         }
 
-        // Algorithm 3: GwfExpand
+        // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts, expand_scratch);
 
         uint32_t next_idx = increment_mod(curr_idx, history_size);
@@ -149,7 +149,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
 
 template <typename CostType>
 template <typename StopPredicate>
-std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
+std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     const std::string &query,
     StopPredicate stop_predicate,
     int upper_bound)
@@ -196,7 +196,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
     int32_t current_score = 0;  // 現在の編集距離
     uint32_t curr_idx = 0;
 
-    // Algorithm 1: GwfEditDist のメインループ
+    // Algorithm 1: DT-Patricia のメインループ
     while (true) {
         WavefrontArray &curr_wf_m = wf_history_m[curr_idx];
         if (curr_wf_m.empty()) {
@@ -228,7 +228,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
             }
         }
 
-        // Algorithm 2: GwfExtend
+        // Algorithm 2: DT-Patricia Extend
         extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts);
         if (upper_bound >= 0) {
             prune_by_upper_bound<true>(
@@ -284,7 +284,7 @@ std::vector<AlignmentResult> PatriciaWFA<CostType>::search_kernel(
             break;
         }
 
-        // Algorithm 3: GwfExpand
+        // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
             curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d, expand_scratch);

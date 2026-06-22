@@ -1,11 +1,11 @@
 
-#include "PatriciaWFA.hpp"
+#include "DT-Patricia.hpp"
 
-// =========================================================
-// Algorithm 3: GwfExpand - Edit operations (I/D/S)
-// =======================================================
+// ==============================================================================
+// Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S)
+// ==============================================================================
 template <typename CostType>
-void PatriciaWFA<CostType>::expand(
+void DTPatricia<CostType>::expand(
     const std::string_view query,
     std::vector<WavefrontArray> &wf_history,
     WavefrontArray &next_wf_array,
@@ -195,8 +195,11 @@ void PatriciaWFA<CostType>::expand(
     }
 }
 
+// ==============================================================================
+// Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S) for affine gap cost
+// ==============================================================================
 template <typename CostType>
-void PatriciaWFA<CostType>::expand(
+void DTPatricia<CostType>::expand(
     const std::string_view query,
     std::vector<WavefrontArray> &wf_history_d,
     std::vector<WavefrontArray> &wf_history_m,
