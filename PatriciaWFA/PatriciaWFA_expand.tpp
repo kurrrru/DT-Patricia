@@ -16,7 +16,7 @@ void PatriciaWFA<CostType>::expand(
     next_wf_array.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
 
-    // Sentinel: NULL_OFF << any valid offset; NULL_OFF + 1 is still << 0, so max() naturally rejects it
+    // Sentinel: NULL_OFF < any valid offset; NULL_OFF + 1 is still < 0, so max() naturally rejects it
     static constexpr int32_t NULL_OFF = -1'000'000'000;
 
     if constexpr (CostType::is_unit) {
