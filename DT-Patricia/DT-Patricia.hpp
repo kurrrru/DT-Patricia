@@ -19,20 +19,20 @@
 #include <array>
 
 template <typename CostType = UnitCost>
-class PatriciaWFA {
+class DTPatricia {
  public:
     // =========================================================
     // 1. コンストラクタ / デストラクタ (Rule of Five)
     // =========================================================
 
-    PatriciaWFA(const PatriciaTree &patricia_tree, CostType cost = CostType())
+    DTPatricia(const PatriciaTree &patricia_tree, CostType cost = CostType())
         : _patricia_tree(patricia_tree), _cost(cost) {}
-    PatriciaWFA() = delete;
-    ~PatriciaWFA() = default;
-    PatriciaWFA(const PatriciaWFA&) = delete;
-    PatriciaWFA &operator=(const PatriciaWFA&) = delete;
-    PatriciaWFA(PatriciaWFA&&) noexcept = delete;
-    PatriciaWFA &operator=(PatriciaWFA&&) noexcept = delete;
+    DTPatricia() = delete;
+    ~DTPatricia() = default;
+    DTPatricia(const DTPatricia&) = delete;
+    DTPatricia &operator=(const DTPatricia&) = delete;
+    DTPatricia(DTPatricia&&) noexcept = delete;
+    DTPatricia &operator=(DTPatricia&&) noexcept = delete;
 
     // =========================================================
     // 2. 基本API
@@ -123,7 +123,7 @@ class PatriciaWFA {
                 ) const requires (!CostType::is_linear);
 };
 
-#include "PatriciaWFA_search_kernel.tpp"
-#include "PatriciaWFA_extend.tpp"
-#include "PatriciaWFA_expand.tpp"
-#include "PatriciaWFA_pruning.tpp"
+#include "DT-Patricia_search_kernel.tpp"
+#include "DT-Patricia_extend.tpp"
+#include "DT-Patricia_expand.tpp"
+#include "DT-Patricia_pruning.tpp"

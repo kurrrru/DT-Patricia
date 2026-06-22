@@ -1,10 +1,10 @@
-#include "PatriciaWFA.hpp"
+#include "DT-Patricia.hpp"
 
 // =========================================================
-// Algorithm 2: GwfExtend - Exact match extension
+// Algorithm 2: DT-Patricia Extend - Exact match extension
 // =========================================================
 template <typename CostType>
-void PatriciaWFA<CostType>::extend(
+void DTPatricia<CostType>::extend(
     const std::string_view query,
     WavefrontArray &wf_array,
     WavefrontArray &next_wf_array,

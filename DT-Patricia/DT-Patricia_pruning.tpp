@@ -1,10 +1,10 @@
-#include "PatriciaWFA.hpp"
+#include "DT-Patricia.hpp"
 
 // =========================================================
 // prune_by_upper_bound
 // =========================================================
 template <typename CostType>
-void PatriciaWFA<CostType>::prune_by_upper_bound(
+void DTPatricia<CostType>::prune_by_upper_bound(
     WavefrontArray &wf_array,
     const std::vector<uint32_t> &subtree_max_lengths,
     const std::vector<uint32_t> &subtree_min_lengths,
@@ -35,7 +35,7 @@ void PatriciaWFA<CostType>::prune_by_upper_bound(
 
 template <typename CostType>
 template <bool only_m>
-void PatriciaWFA<CostType>::prune_by_upper_bound(
+void DTPatricia<CostType>::prune_by_upper_bound(
     WavefrontArray &wf_array_d,
     WavefrontArray &wf_array_m,
     WavefrontArray &wf_array_i,
