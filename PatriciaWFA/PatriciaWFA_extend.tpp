@@ -15,13 +15,18 @@ void PatriciaWFA<CostType>::extend(
     child_wf_array.clear_logical_size();
 
     bool buffer_used = false;
-    
+
     const int32_t query_length = static_cast<int32_t>(query.length());
-    
+
     size_t wf_array_idx = 0;
     size_t child_idx = 0;
     uint32_t last_node_id = UINT32_MAX;
-    
+
+    // Label caching to avoid repeated get_label calls for the same node_id
+    std::string_view cached_label;
+    int32_t cached_label_len = 0;
+    uint32_t cached_label_node_id = UINT32_MAX;
+
     while (wf_array_idx < wf_array.active_size() || child_idx < child_wf_array.active_size() || buffer_used) {
         bool wf_array_idx_increment = false;
         bool child_idx_increment = false;
@@ -55,7 +60,7 @@ void PatriciaWFA<CostType>::extend(
         } else {
             const uint64_t wf_vk = wf_array.get_vk(wf_array_idx);
             const uint64_t child_vk = child_wf_array.get_vk(child_idx);
-            
+
             if (wf_vk < child_vk) {
                 current_vk = wf_vk;
                 current_offset = wf_array.get_offset(wf_array_idx);
@@ -72,9 +77,9 @@ void PatriciaWFA<CostType>::extend(
                 child_idx_increment = true;
             }
         }
-        
+
         // === ステップ2: node_idが変わったらbufferを処理 ===
-        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(current_vk); 
+        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(current_vk);
         if (node_id != last_node_id && buffer_used) {
             // bufferはソート済み
             // (BFS順により child_wf_arrayの末尾 < bufferの最小値 が保証される)
@@ -111,20 +116,27 @@ void PatriciaWFA<CostType>::extend(
             }
         }
         last_node_id = node_id;
-        
+
         // === ステップ3: Extension 処理 ===
         int32_t k = WavefrontArray::calc_k_from_vk(current_vk);
         int32_t j = current_offset;
         int32_t i = k + j;
-        
-        std::string_view label = _patricia_tree.get_label(node_id);
-        const int32_t label_len = static_cast<int32_t>(label.length());
+
+        // Cache label lookup: only call get_label when node_id changes
+        if (node_id != cached_label_node_id) {
+            cached_label = _patricia_tree.get_label(node_id);
+            cached_label_len = static_cast<int32_t>(cached_label.length());
+            cached_label_node_id = node_id;
+        }
+        const std::string_view& label = cached_label;
+        const int32_t label_len = cached_label_len;
+
         const int32_t max_lcp_len = std::min(query_length - (i + 1), label_len - (j + 1));
         // exact match extension
         int32_t lcp_len = static_cast<int32_t>(fast_lcp(query.data() + i + 1, label.data() + j + 1, max_lcp_len));
         i += lcp_len;
         j += lcp_len;
-        
+
         // === ステップ4: 子ノードへの遷移 or next_wf_array への追加 ===
         if (j + 1 == label_len) {
             // ノード終端に到達 → 子ノードをbufferに追加
@@ -133,13 +145,11 @@ void PatriciaWFA<CostType>::extend(
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;
-                    // if (visited_map.update_and_check(WavefrontArray::calc_vk(child, new_k), -1)) {
-                        buffer[code - 1].push_back_state(child, new_k, -1);
-                        buffer_used = true;
-                    // }
+                    buffer[code - 1].push_back_state(child, new_k, -1);
+                    buffer_used = true;
                 }
             }
-            
+
             if (_patricia_tree.is_terminal(node_id)) {
                 next_wf_array.push_back_state(node_id, k, j);
             }
