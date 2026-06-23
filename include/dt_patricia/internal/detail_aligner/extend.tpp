@@ -142,7 +142,6 @@ void DTPatricia<Alphabet, CostType>::extend(
         // === ステップ4: 子ノードへの遷移 or next_wf_array への追加 ===
         if (j + 1 == label_len) {
             // ノード終端に到達 → 子ノードをbufferに追加
-            #pragma GCC unroll 5
             for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {

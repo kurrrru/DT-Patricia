@@ -314,7 +314,6 @@ void DTPatricia<Alphabet, CostType>::expand(
                     const int32_t current_k = internal::WavefrontArray::calc_k_from_vk(st_vk);
                     const int32_t next_k = current_k + st_offset;
 
-                    #pragma GCC unroll 5
                     for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                         uint32_t child = _patricia_tree.transition(node_id, code);
                         if (child != 0 && active_counts[child] > 0) {
