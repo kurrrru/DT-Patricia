@@ -388,7 +388,6 @@ void DTPatricia<Alphabet, CostType>::expand(
         }
 
         if (has_pending_d) {
-            #pragma GCC unroll 5
             for (int i = 0; i < tree_type::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
                     pending_d.push_back_state(
