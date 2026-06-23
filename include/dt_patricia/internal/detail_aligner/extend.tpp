@@ -1,4 +1,4 @@
-#include "DT-Patricia.hpp"
+#include <dt_patricia/aligner.hpp>
 
 // =========================================================
 // Algorithm 2: DT-Patricia Extend - Exact match extension

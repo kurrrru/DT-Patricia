@@ -1,5 +1,4 @@
-
-#include "DT-Patricia.hpp"
+#include <dt_patricia/aligner.hpp>
 
 // ==============================================================================
 // Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "WavefrontArray.hpp"
+#include <dt_patricia/internal/wavefront_array.hpp>
 #include <vector>
 #include <memory>
 #include <cstddef>

@@ -1,4 +1,4 @@
-#include "DT-Patricia.hpp"
+#include <dt_patricia/aligner.hpp>
 
 // =========================================================
 // テンプレート関数の実装

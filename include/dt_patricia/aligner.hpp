@@ -1,11 +1,11 @@
 #pragma once
 
-#include "PatriciaTree.hpp"
-#include "AlignmentResult.hpp"
-#include "WavefrontArray.hpp"
-#include "FastLCP.hpp"
-#include "CostType.hpp"
-#include "mod_utils.hpp"
+#include <dt_patricia/patricia_tree.hpp>
+#include <dt_patricia/alignment_result.hpp>
+#include <dt_patricia/internal/wavefront_array.hpp>
+#include <dt_patricia/internal/lcp.hpp>
+#include <dt_patricia/policy/cost.hpp>
+#include <dt_patricia/internal/mod_arithmetic.hpp>
 
 #include <iostream>
 #include <vector>
@@ -123,7 +123,7 @@ class DTPatricia {
                 ) const requires (!CostType::is_linear);
 };
 
-#include "DT-Patricia_search_kernel.tpp"
-#include "DT-Patricia_extend.tpp"
-#include "DT-Patricia_expand.tpp"
-#include "DT-Patricia_pruning.tpp"
+#include <dt_patricia/internal/detail_aligner/search_kernel.tpp>
+#include <dt_patricia/internal/detail_aligner/extend.tpp>
+#include <dt_patricia/internal/detail_aligner/expand.tpp>
+#include <dt_patricia/internal/detail_aligner/pruning.tpp>

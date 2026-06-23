@@ -1,5 +1,5 @@
 #pragma once
-#include "PatriciaTree.hpp"
+#include <dt_patricia/patricia_tree.hpp>
 #include <string_view>
 #include <span>
 

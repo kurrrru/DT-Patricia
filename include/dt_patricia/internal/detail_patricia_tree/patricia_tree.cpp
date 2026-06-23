@@ -1,4 +1,4 @@
-#include "PatriciaTree.hpp"
+#include <dt_patricia/patricia_tree.hpp>
 
 #include <algorithm>
 #include <iostream>
