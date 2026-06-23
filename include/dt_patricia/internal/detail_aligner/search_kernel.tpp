@@ -5,9 +5,9 @@ namespace dt_patricia {
 // =========================================================
 // テンプレート関数の実装
 // =========================================================
-template <typename CostType>
+template <AlphabetPolicy Alphabet, typename CostType>
 template <typename StopPredicate>
-std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
+std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     const std::string &query,
     StopPredicate stop_predicate,
     int upper_bound)
@@ -27,7 +27,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     // クエリのパディング処理
     // =========================================================
     std::string padded_query_str = query;
-    padded_query_str.append(PatriciaTree::SIMD_PADDING_SIZE, '\0');
+    padded_query_str.append(tree_type::SIMD_PADDING_SIZE, '\0');
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
 
@@ -43,7 +43,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     std::vector<internal::WavefrontArray> wf_history(history_size);
     internal::WavefrontArray next_wf_array;
     internal::WavefrontArray child_wf_array;
-    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> buffer;
+    std::array<internal::WavefrontArray, tree_type::CODE_MAX> buffer;
     std::vector<int32_t> expand_scratch;
 
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
@@ -94,7 +94,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
             if (i + 1 == query_length) {  // クエリ終端に到達
                 if (j + 1 == static_cast<int32_t>(_patricia_tree.get_label_length(node_id))) {
                     // 終端文字列を持つかチェック
-                    uint32_t term_node = _patricia_tree.transition(node_id, PatriciaTree::CODE_TERM);
+                    uint32_t term_node = _patricia_tree.transition(node_id, tree_type::CODE_TERM);
                     if (term_node != 0) {
                         auto string_ids = _patricia_tree.get_string_id(term_node);
                         uint32_t found_count = 0;
@@ -149,9 +149,9 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     return results;
 }
 
-template <typename CostType>
+template <AlphabetPolicy Alphabet, typename CostType>
 template <typename StopPredicate>
-std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
+std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     const std::string &query,
     StopPredicate stop_predicate,
     int upper_bound)
@@ -170,7 +170,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     // クエリのパディング処理
     // =========================================================
     std::string padded_query_str = query;
-    padded_query_str.append(PatriciaTree::SIMD_PADDING_SIZE, '\0');
+    padded_query_str.append(tree_type::SIMD_PADDING_SIZE, '\0');
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
 
@@ -185,7 +185,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     internal::WavefrontArray next_wf_array_m;
     internal::WavefrontArray next_wf_array_i;
     internal::WavefrontArray child_wf_array;
-    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> buffer;
+    std::array<internal::WavefrontArray, tree_type::CODE_MAX> buffer;
 
     internal::WavefrontArray pending_d;
     internal::WavefrontArray merged_wf_array_d;
@@ -255,7 +255,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
             if (i + 1 == query_length) {  // クエリ終端に到達
                 if (j + 1 == static_cast<int32_t>(_patricia_tree.get_label_length(node_id))) {
                     // 終端文字列を持つかチェック
-                    uint32_t term_node = _patricia_tree.transition(node_id, PatriciaTree::CODE_TERM);
+                    uint32_t term_node = _patricia_tree.transition(node_id, tree_type::CODE_TERM);
                     if (term_node != 0) {
                         auto string_ids = _patricia_tree.get_string_id(term_node);
                         uint32_t found_count = 0;

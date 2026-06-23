@@ -5,13 +5,13 @@ namespace dt_patricia {
 // =========================================================
 // Algorithm 2: DT-Patricia Extend - Exact match extension
 // =========================================================
-template <typename CostType>
-void DTPatricia<CostType>::extend(
+template <AlphabetPolicy Alphabet, typename CostType>
+void DTPatricia<Alphabet, CostType>::extend(
     const std::string_view query,
     internal::WavefrontArray &wf_array,
     internal::WavefrontArray &next_wf_array,
     internal::WavefrontArray &child_wf_array,
-    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> &buffer,
+    std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &buffer,
     const std::vector<uint32_t> &active_counts) const {
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
@@ -142,8 +142,7 @@ void DTPatricia<CostType>::extend(
         // === ステップ4: 子ノードへの遷移 or next_wf_array への追加 ===
         if (j + 1 == label_len) {
             // ノード終端に到達 → 子ノードをbufferに追加
-            #pragma GCC unroll 5
-            for (uint8_t code = 1; code <= PatriciaTree::CODE_MAX; ++code) {
+            for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;

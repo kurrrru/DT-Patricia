@@ -5,8 +5,8 @@ namespace dt_patricia {
 // =========================================================
 // prune_by_upper_bound
 // =========================================================
-template <typename CostType>
-void DTPatricia<CostType>::prune_by_upper_bound(
+template <AlphabetPolicy Alphabet, typename CostType>
+void DTPatricia<Alphabet, CostType>::prune_by_upper_bound(
     internal::WavefrontArray &wf_array,
     const std::vector<uint32_t> &subtree_max_lengths,
     const std::vector<uint32_t> &subtree_min_lengths,
@@ -35,9 +35,9 @@ void DTPatricia<CostType>::prune_by_upper_bound(
     wf_array.set_size(write_idx);
 }
 
-template <typename CostType>
+template <AlphabetPolicy Alphabet, typename CostType>
 template <bool only_m>
-void DTPatricia<CostType>::prune_by_upper_bound(
+void DTPatricia<Alphabet, CostType>::prune_by_upper_bound(
     internal::WavefrontArray &wf_array_d,
     internal::WavefrontArray &wf_array_m,
     internal::WavefrontArray &wf_array_i,
