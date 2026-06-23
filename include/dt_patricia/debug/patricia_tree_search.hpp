@@ -3,7 +3,7 @@
 #include <string_view>
 #include <span>
 
-namespace patricia_search {
+namespace dt_patricia::debug {
 
     inline std::span<const uint32_t> exact_match(const PatriciaTree& tree, std::string_view query) {
         uint32_t current_node = tree.root_id();
@@ -39,4 +39,4 @@ namespace patricia_search {
         }
     }
 
-} // namespace patricia_search
+} // namespace dt_patricia::debug

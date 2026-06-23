@@ -1,11 +1,13 @@
 #include <dt_patricia/aligner.hpp>
 
+namespace dt_patricia {
+
 // =========================================================
 // prune_by_upper_bound
 // =========================================================
 template <typename CostType>
 void DTPatricia<CostType>::prune_by_upper_bound(
-    WavefrontArray &wf_array,
+    internal::WavefrontArray &wf_array,
     const std::vector<uint32_t> &subtree_max_lengths,
     const std::vector<uint32_t> &subtree_min_lengths,
     int32_t query_length,
@@ -15,8 +17,8 @@ void DTPatricia<CostType>::prune_by_upper_bound(
     const int32_t max_diff = upper_bound_remain / static_cast<int32_t>(_cost.gap);
     for (size_t i = 0; i < wf_array.active_size(); i++) {
         const uint64_t vk = wf_array.get_vk(i);
-        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(vk);
-        int32_t k = WavefrontArray::calc_k_from_vk(vk);
+        uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(vk);
+        int32_t k = internal::WavefrontArray::calc_k_from_vk(vk);
         int32_t j_pos = wf_array.get_offset(i);
         int32_t i_pos = k + j_pos;
         int32_t max_remain = subtree_max_lengths[node_id] - (j_pos + 1);
@@ -36,9 +38,9 @@ void DTPatricia<CostType>::prune_by_upper_bound(
 template <typename CostType>
 template <bool only_m>
 void DTPatricia<CostType>::prune_by_upper_bound(
-    WavefrontArray &wf_array_d,
-    WavefrontArray &wf_array_m,
-    WavefrontArray &wf_array_i,
+    internal::WavefrontArray &wf_array_d,
+    internal::WavefrontArray &wf_array_m,
+    internal::WavefrontArray &wf_array_i,
     const std::vector<uint32_t> &subtree_max_lengths,
     const std::vector<uint32_t> &subtree_min_lengths,
     int32_t query_length,
@@ -49,12 +51,12 @@ void DTPatricia<CostType>::prune_by_upper_bound(
     const int32_t gap_e = static_cast<int32_t>(_cost.gap_extend);
 
     // M, I, D それぞれに対して判定を行う
-    auto prune_logic = [&](WavefrontArray& wf, int state_type) {
+    auto prune_logic = [&](internal::WavefrontArray& wf, int state_type) {
         size_t write_idx = 0;
         for (size_t i = 0; i < wf.active_size(); ++i) {
             const uint64_t vk = wf.get_vk(i);
-            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(vk);
-            int32_t v_k = WavefrontArray::calc_k_from_vk(vk);
+            uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(vk);
+            int32_t v_k = internal::WavefrontArray::calc_k_from_vk(vk);
             int32_t j_pos = wf.get_offset(i);
             int32_t i_pos = v_k + j_pos;
 
@@ -92,3 +94,5 @@ void DTPatricia<CostType>::prune_by_upper_bound(
         prune_logic(wf_array_i, 2); // Insertion
     }
 }
+
+}  // namespace dt_patricia

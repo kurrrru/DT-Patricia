@@ -5,6 +5,8 @@
 #include <string_view>
 #include <span>
 
+namespace dt_patricia {
+
 class PatriciaTree {
 public:
     // =========================================================
@@ -212,3 +214,5 @@ private:
         return table;
     }();
 };
+
+}  // namespace dt_patricia

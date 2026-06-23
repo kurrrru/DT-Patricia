@@ -10,6 +10,8 @@
 #include <optional>
 #include <span>
 
+namespace dt_patricia {
+
 namespace {
     // MSD Radix Sortの実装
     // depth: 現在見ている文字位置
@@ -321,4 +323,6 @@ void msd_radix_sort_recursive(
     }
 }
 
-}
+}  // namespace
+
+}  // namespace dt_patricia

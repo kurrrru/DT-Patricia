@@ -5,6 +5,8 @@
 #include <memory>
 #include <cstddef>
 
+namespace dt_patricia::internal {
+
 class WavefrontPool {
 private:
     std::vector<std::unique_ptr<WavefrontArray>> _pool;
@@ -92,3 +94,5 @@ public:
         _cursor = 0;
     }
 };
+
+}  // namespace dt_patricia::internal

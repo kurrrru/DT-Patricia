@@ -1,15 +1,17 @@
 #include <dt_patricia/aligner.hpp>
 
+namespace dt_patricia {
+
 // =========================================================
 // Algorithm 2: DT-Patricia Extend - Exact match extension
 // =========================================================
 template <typename CostType>
 void DTPatricia<CostType>::extend(
     const std::string_view query,
-    WavefrontArray &wf_array,
-    WavefrontArray &next_wf_array,
-    WavefrontArray &child_wf_array,
-    std::array<WavefrontArray, PatriciaTree::CODE_MAX> &buffer,
+    internal::WavefrontArray &wf_array,
+    internal::WavefrontArray &next_wf_array,
+    internal::WavefrontArray &child_wf_array,
+    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> &buffer,
     const std::vector<uint32_t> &active_counts) const {
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
@@ -79,7 +81,7 @@ void DTPatricia<CostType>::extend(
         }
 
         // === ステップ2: node_idが変わったらbufferを処理 ===
-        uint32_t node_id = WavefrontArray::calc_node_id_from_vk(current_vk);
+        uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(current_vk);
         if (node_id != last_node_id && buffer_used) {
             // bufferはソート済み
             // (BFS順により child_wf_arrayの末尾 < bufferの最小値 が保証される)
@@ -112,13 +114,13 @@ void DTPatricia<CostType>::extend(
                     child_idx_increment = true;
                     wf_array_idx_increment = true;
                 }
-                node_id = WavefrontArray::calc_node_id_from_vk(current_vk);
+                node_id = internal::WavefrontArray::calc_node_id_from_vk(current_vk);
             }
         }
         last_node_id = node_id;
 
         // === ステップ3: Extension 処理 ===
-        int32_t k = WavefrontArray::calc_k_from_vk(current_vk);
+        int32_t k = internal::WavefrontArray::calc_k_from_vk(current_vk);
         int32_t j = current_offset;
         int32_t i = k + j;
 
@@ -133,7 +135,7 @@ void DTPatricia<CostType>::extend(
 
         const int32_t max_lcp_len = std::min(query_length - (i + 1), label_len - (j + 1));
         // exact match extension
-        int32_t lcp_len = static_cast<int32_t>(fast_lcp(query.data() + i + 1, label.data() + j + 1, max_lcp_len));
+        int32_t lcp_len = static_cast<int32_t>(internal::fast_lcp(query.data() + i + 1, label.data() + j + 1, max_lcp_len));
         i += lcp_len;
         j += lcp_len;
 
@@ -166,3 +168,5 @@ void DTPatricia<CostType>::extend(
     // ここではbufferは空になっている(空になっていないとwhileループが継続するため)
     wf_array.swap(next_wf_array);
 }
+
+}  // namespace dt_patricia
