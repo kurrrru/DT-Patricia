@@ -1,12 +1,17 @@
 #pragma once
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <string_view>
 #include <span>
 
+#include <dt_patricia/policy/alphabet.hpp>
+
 namespace dt_patricia {
 
+template <AlphabetPolicy Alphabet = DnaAlphabet>
 class PatriciaTree {
 public:
     // =========================================================
@@ -49,7 +54,7 @@ public:
     // ノード node_id から 文字 ch で遷移できるか？
     // 遷移できれば次のノードID、できなければ 0 (無効値) を返す
     [[nodiscard]] inline uint32_t transition(uint32_t node_id, char ch) const noexcept {
-        uint8_t code = CHAR_TO_CODE[static_cast<uint8_t>(ch)];
+        uint8_t code = CHAR_TO_CODE[static_cast<unsigned char>(ch)];
         return transition(node_id, code);
     }
 
@@ -176,43 +181,25 @@ private:
 
  public:
     // =========================================================
-    // char -> code 変換テーブル
+    // alphabet 由来の文字コード変換テーブル
     // =========================================================
+
+    using alphabet_type = Alphabet;
 
     // SIMDの境界外読み込みアクセス違反を防ぐためのパディングサイズ
     static constexpr size_t SIMD_PADDING_SIZE = 256;
 
-    // 定数定義
-    static constexpr uint8_t CODE_TERM = 0;
-    static constexpr uint8_t CODE_A    = 1;
-    static constexpr uint8_t CODE_C    = 2;
-    static constexpr uint8_t CODE_G    = 3;
-    static constexpr uint8_t CODE_T    = 4;  // UもTとして扱う
-    static constexpr uint8_t CODE_N    = 5;  // Nや未知の文字用
+    // alphabet policy から取得する定数
+    static constexpr uint8_t CODE_TERM = Alphabet::CODE_TERM;  // 終端コード (必ず 0)
+    static constexpr uint8_t CODE_MAX  = Alphabet::CODE_MAX;   // 最大コード値
+    static constexpr std::size_t BUCKET_SIZE =
+        static_cast<std::size_t>(CODE_MAX) + 1;               // コード 0..CODE_MAX のバケット数
 
-    static constexpr uint8_t CODE_MAX  = 5;  // 最大コード値 (Nのコード)
-
-    // テーブル生成用ラムダ（コンパイル時に計算完了）
-    static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = []() consteval {
-        std::array<uint8_t, 256> table{};        
-        table.fill(CODE_N);
-
-        // 1. 終端文字 (\0)
-        table['\0'] = CODE_TERM;
-
-        // 2. DNA塩基 (大文字・小文字)
-        table['A'] = CODE_A; table['a'] = CODE_A;
-        table['C'] = CODE_C; table['c'] = CODE_C;
-        table['G'] = CODE_G; table['g'] = CODE_G;
-        table['T'] = CODE_T; table['t'] = CODE_T;
-
-        // 3. RNA塩基のUもTとして扱う
-        table['U'] = CODE_T; table['u'] = CODE_T;
-
-        // 4. その他の文字はすべてCODE_Nのまま
-
-        return table;
-    }();
+    // char -> code 変換テーブル（alphabet policy が consteval で生成、コンパイル時に計算完了）
+    inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE =
+        Alphabet::make_char_to_code();
 };
 
 }  // namespace dt_patricia
+
+#include <dt_patricia/internal/detail_patricia_tree/patricia_tree.tpp>

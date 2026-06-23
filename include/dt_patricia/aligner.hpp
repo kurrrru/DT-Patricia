@@ -20,14 +20,17 @@
 
 namespace dt_patricia {
 
-template <typename CostType = UnitCost>
+template <AlphabetPolicy Alphabet = DnaAlphabet, typename CostType = UnitCost>
 class DTPatricia {
  public:
+    using alphabet_type = Alphabet;
+    using tree_type = PatriciaTree<Alphabet>;
+
     // =========================================================
     // 1. コンストラクタ / デストラクタ (Rule of Five)
     // =========================================================
 
-    DTPatricia(const PatriciaTree &patricia_tree, CostType cost = CostType())
+    DTPatricia(const tree_type &patricia_tree, CostType cost = CostType())
         : _patricia_tree(patricia_tree), _cost(cost) {}
     DTPatricia() = delete;
     ~DTPatricia() = default;
@@ -39,8 +42,8 @@ class DTPatricia {
     // =========================================================
     // 2. 基本API
     // =========================================================
-    
-    [[nodiscard]] inline const PatriciaTree &get_patricia_tree() const noexcept {
+
+    [[nodiscard]] inline const tree_type &get_patricia_tree() const noexcept {
         return _patricia_tree;
     }
 
@@ -72,7 +75,7 @@ class DTPatricia {
     std::vector<AlignmentResult> search_kernel(const std::string &query, StopPredicate stop_predicate, int upper_bound = -1) const requires (!CostType::is_linear);
 
  private:
-    const PatriciaTree &_patricia_tree;
+    const tree_type &_patricia_tree;
     CostType _cost;
 
     void prune_by_upper_bound(internal::WavefrontArray &wf_array,
@@ -95,7 +98,7 @@ class DTPatricia {
     void extend(const std::string_view query, internal::WavefrontArray &wf_array,
                     internal::WavefrontArray &next_wf_array,
                     internal::WavefrontArray &child_wf_array,
-                    std::array<internal::WavefrontArray, 5> &buffer,
+                    std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &buffer,
                     const std::vector<uint32_t> &active_counts
                 ) const;
     
@@ -118,7 +121,7 @@ class DTPatricia {
                     int32_t curr_idx,
                     size_t history_size,
                     const std::vector<uint32_t> &active_counts,
-                    std::array<internal::WavefrontArray, 5> &pending_d_buffer,
+                    std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
                     internal::WavefrontArray &pending_d,
                     internal::WavefrontArray &merged_wf_array_d,
                     std::vector<int32_t> &expand_scratch

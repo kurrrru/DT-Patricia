@@ -5,7 +5,8 @@
 
 namespace dt_patricia::debug {
 
-    inline std::span<const uint32_t> exact_match(const PatriciaTree& tree, std::string_view query) {
+    template <AlphabetPolicy Alphabet>
+    std::span<const uint32_t> exact_match(const PatriciaTree<Alphabet>& tree, std::string_view query) {
         uint32_t current_node = tree.root_id();
         size_t query_pos = 0;
 
@@ -22,7 +23,7 @@ namespace dt_patricia::debug {
             query_pos += label_len;
 
             if (query_pos == query.length()) { 
-                uint32_t leaf_node = tree.transition(current_node, PatriciaTree::CODE_TERM);
+                uint32_t leaf_node = tree.transition(current_node, PatriciaTree<Alphabet>::CODE_TERM);
                 if (leaf_node != 0) {  
                     return tree.get_string_id(leaf_node);
                 } else {  

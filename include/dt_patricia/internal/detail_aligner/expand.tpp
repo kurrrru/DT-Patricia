@@ -5,8 +5,8 @@ namespace dt_patricia {
 // ==============================================================================
 // Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S)
 // ==============================================================================
-template <typename CostType>
-void DTPatricia<CostType>::expand(
+template <AlphabetPolicy Alphabet, typename CostType>
+void DTPatricia<Alphabet, CostType>::expand(
     const std::string_view query,
     std::vector<internal::WavefrontArray> &wf_history,
     internal::WavefrontArray &next_wf_array,
@@ -199,8 +199,8 @@ void DTPatricia<CostType>::expand(
 // ==============================================================================
 // Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S) for affine gap cost
 // ==============================================================================
-template <typename CostType>
-void DTPatricia<CostType>::expand(
+template <AlphabetPolicy Alphabet, typename CostType>
+void DTPatricia<Alphabet, CostType>::expand(
     const std::string_view query,
     std::vector<internal::WavefrontArray> &wf_history_d,
     std::vector<internal::WavefrontArray> &wf_history_m,
@@ -211,7 +211,7 @@ void DTPatricia<CostType>::expand(
     int32_t curr_idx,
     size_t history_size,
     const std::vector<uint32_t> &active_counts,
-    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> &pending_d_buffer,
+    std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
     internal::WavefrontArray &pending_d,
     internal::WavefrontArray &merged_wf_array_d,
     std::vector<int32_t> &expand_scratch) const requires (!CostType::is_linear) {
@@ -315,7 +315,7 @@ void DTPatricia<CostType>::expand(
                     const int32_t next_k = current_k + st_offset;
 
                     #pragma GCC unroll 5
-                    for (uint8_t code = 1; code <= PatriciaTree::CODE_MAX; ++code) {
+                    for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                         uint32_t child = _patricia_tree.transition(node_id, code);
                         if (child != 0 && active_counts[child] > 0) {
                             pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
@@ -390,7 +390,7 @@ void DTPatricia<CostType>::expand(
 
         if (has_pending_d) {
             #pragma GCC unroll 5
-            for (int i = 0; i < PatriciaTree::CODE_MAX; ++i) {
+            for (int i = 0; i < tree_type::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
                     pending_d.push_back_state(
                         pending_d_buffer[i].get_vk(j),

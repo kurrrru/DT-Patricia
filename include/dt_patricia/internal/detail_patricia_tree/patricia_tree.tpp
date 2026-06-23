@@ -12,38 +12,42 @@
 
 namespace dt_patricia {
 
-namespace {
+namespace detail_patricia_tree {
     // MSD Radix Sortの実装
     // depth: 現在見ている文字位置
     // [start, end): ソート対象のインデックス範囲
+    template <AlphabetPolicy Alphabet>
     void msd_radix_sort_recursive(
         std::vector<uint32_t> &indices,
         const std::vector<std::string> &input_data,
         size_t start,
         size_t end,
         size_t depth);
-}
+}  // namespace detail_patricia_tree
 
-PatriciaTree::PatriciaTree(const std::vector<std::string> &input_data) : _size(static_cast<uint32_t>(input_data.size())) {
+template <AlphabetPolicy Alphabet>
+PatriciaTree<Alphabet>::PatriciaTree(const std::vector<std::string> &input_data)
+    : _size(static_cast<uint32_t>(input_data.size())) {
     if (input_data.empty()) {
         return;
     }
-    
+
     // MSD Radix Sortでインデックスをソート
     std::vector<uint32_t> indices(input_data.size());
     std::iota(indices.begin(), indices.end(), 0);
-    msd_radix_sort_recursive(indices, input_data, 0, indices.size(), 0);
-    
+    detail_patricia_tree::msd_radix_sort_recursive<Alphabet>(indices, input_data, 0, indices.size(), 0);
+
     build(input_data, indices);
 }
 
-void PatriciaTree::build(const std::vector<std::string> &input_data,
+template <AlphabetPolicy Alphabet>
+void PatriciaTree<Alphabet>::build(const std::vector<std::string> &input_data,
     const std::vector<uint32_t> &sorted_indices) {
 
     // ===========================================================
     // 1. ツリー構築のための初期化
     // ===========================================================
-    _base.reserve(input_data.size() * 2); 
+    _base.reserve(input_data.size() * 2);
     _check.reserve(input_data.size() * 2);
     _subtree_counts.reserve(input_data.size() * 2);
 
@@ -67,15 +71,15 @@ void PatriciaTree::build(const std::vector<std::string> &input_data,
     std::vector<QueueItem> queue;
     queue.reserve(input_data.size());
     queue.push_back({1, 0, sorted_indices.size(), 0});
-    
+
     size_t queue_pos = 0;
-    
+
     while (queue_pos < queue.size()) {
         const auto item = queue[queue_pos++];
-        build_node_bfs(item.node_id, item.start_idx, item.end_idx, 
+        build_node_bfs(item.node_id, item.start_idx, item.end_idx,
                        item.label_offset, input_data, sorted_indices, queue);
     }
-    // SIMDのためのパディング 
+    // SIMDのためのパディング
     TEXT_POOL.append(SIMD_PADDING_SIZE, '\0');
 
     // ===========================================================
@@ -84,7 +88,8 @@ void PatriciaTree::build(const std::vector<std::string> &input_data,
     compute_subtree_length_bounds();
 }
 
-void PatriciaTree::compute_subtree_length_bounds()
+template <AlphabetPolicy Alphabet>
+void PatriciaTree<Alphabet>::compute_subtree_length_bounds()
 {
     uint32_t num_nodes = static_cast<uint32_t>(_base.size());
     _subtree_min_len.assign(num_nodes, 0xFFFFFFFF);
@@ -122,7 +127,8 @@ void PatriciaTree::compute_subtree_length_bounds()
     }
 }
 
-void PatriciaTree::build_node_bfs(
+template <AlphabetPolicy Alphabet>
+void PatriciaTree<Alphabet>::build_node_bfs(
     uint32_t node_id,
     size_t start_idx,
     size_t end_idx,
@@ -130,7 +136,7 @@ void PatriciaTree::build_node_bfs(
     const std::vector<std::string> &input_data,
     const std::vector<uint32_t> &sorted_indices,
     std::vector<QueueItem> &queue) {
-    
+
     // 1. ラベル（共通接頭辞）の決定
     const std::string &first_str = input_data[sorted_indices[start_idx]];
     const std::string &last_str  = input_data[sorted_indices[end_idx - 1]];
@@ -159,13 +165,13 @@ void PatriciaTree::build_node_bfs(
         size_t end;
     };
     std::vector<Group> groups;
-    
+
     auto get_code = [&](size_t idx) -> uint8_t {
         const std::string &s = input_data[sorted_indices[idx]];
         if (current_offset >= s.size()) {
             return CODE_TERM;
         }
-        return CHAR_TO_CODE[static_cast<uint8_t>(s[current_offset])];
+        return CHAR_TO_CODE[static_cast<unsigned char>(s[current_offset])];
     };
 
     size_t group_start = start_idx;
@@ -192,7 +198,7 @@ void PatriciaTree::build_node_bfs(
         }
     }
     size_t required_size = base + max_code + 1;
-    
+
     if (_check.size() < required_size) {
         _base.resize(required_size, 0);
         _check.resize(required_size, 0);
@@ -215,13 +221,13 @@ void PatriciaTree::build_node_bfs(
         if (group.code == CODE_TERM) {
             // 葉ノード
             _base[child_node_id] = 0;
-            
+
             uint32_t ids_start = static_cast<uint32_t>(_string_ids.size());
             uint32_t ids_count = static_cast<uint32_t>(group.end - group.start);
-            
+
             _string_ids_offset[child_node_id] = ids_start;
             _string_ids_count[child_node_id]  = ids_count;
-            
+
             _string_ids.insert(
                 _string_ids.end(),
                 sorted_indices.begin() + group.start,
@@ -237,17 +243,20 @@ void PatriciaTree::build_node_bfs(
     }
 }
 
-namespace {
+namespace detail_patricia_tree {
 // MSD Radix Sortの実装
 // depth: 現在見ている文字位置
 // [start, end): ソート対象のインデックス範囲
+template <AlphabetPolicy Alphabet>
 void msd_radix_sort_recursive(
     std::vector<uint32_t> &indices,
     const std::vector<std::string> &input_data,
     size_t start,
     size_t end,
     size_t depth) {
-    
+
+    using Tree = PatriciaTree<Alphabet>;
+
     // 小さい範囲は通常のソートの方が高速
     constexpr size_t INSERTION_SORT_THRESHOLD = 16;
     if (end - start <= INSERTION_SORT_THRESHOLD) {
@@ -258,8 +267,8 @@ void msd_radix_sort_recursive(
                     size_t pos = depth;
                     // コードで比較（MSD Radix Sortと一貫性を保つ）
                     while (pos < sa.size() && pos < sb.size()) {
-                        uint8_t code_a = PatriciaTree::CHAR_TO_CODE[static_cast<uint8_t>(sa[pos])];
-                        uint8_t code_b = PatriciaTree::CHAR_TO_CODE[static_cast<uint8_t>(sb[pos])];
+                        uint8_t code_a = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sa[pos])];
+                        uint8_t code_b = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sb[pos])];
                         if (code_a != code_b) {
                             return code_a < code_b;
                         }
@@ -270,59 +279,59 @@ void msd_radix_sort_recursive(
                 });
         return;
     }
-    
-    // バケット: コード0-5 (TERM, A, C, G, T, N)
-    constexpr size_t BUCKET_SIZE = 6;
+
+    // バケット: コード 0..CODE_MAX (TERM を含む)
+    constexpr size_t BUCKET_SIZE = Tree::BUCKET_SIZE;
     std::array<size_t, BUCKET_SIZE + 1> count = {};
-    
+
     // 1. カウント
     for (size_t i = start; i < end; ++i) {
         const std::string &s = input_data[indices[i]];
         uint8_t code;
         if (depth >= s.size()) {
-            code = PatriciaTree::CODE_TERM;  // 終端
+            code = Tree::CODE_TERM;  // 終端
         } else {
-            code = PatriciaTree::CHAR_TO_CODE[static_cast<uint8_t>(s[depth])];
+            code = Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
         }
         count[code + 1]++;
     }
-    
+
     // 2. 累積和（各バケットの開始位置を計算）
     for (size_t i = 0; i < BUCKET_SIZE; ++i) {
         count[i + 1] += count[i];
     }
-    
+
     // バケットの境界を保存
     std::array<size_t, BUCKET_SIZE + 1> bucket_bounds = count;
-    
+
     // 3. 配置
     std::vector<uint32_t> temp(end - start);
     for (size_t i = start; i < end; ++i) {
         const std::string &s = input_data[indices[i]];
         uint8_t code;
         if (depth >= s.size()) {
-            code = PatriciaTree::CODE_TERM;
+            code = Tree::CODE_TERM;
         } else {
-            code = PatriciaTree::CHAR_TO_CODE[static_cast<uint8_t>(s[depth])];
+            code = Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
         }
         temp[count[code]++] = indices[i];
     }
-    
+
     // 4. 結果をコピー
     std::copy(temp.begin(), temp.end(), indices.begin() + start);
-    
+
     // 5. 各バケットに対して再帰（終端以外）
     for (size_t i = 0; i < BUCKET_SIZE; ++i) {
         size_t bucket_start = start + bucket_bounds[i];
         size_t bucket_end = start + bucket_bounds[i + 1];
-        
+
         // 終端以外のバケットで2個以上の要素があれば再帰
-        if (i != PatriciaTree::CODE_TERM && bucket_end > bucket_start + 1) {
-            msd_radix_sort_recursive(indices, input_data, bucket_start, bucket_end, depth + 1);
+        if (i != Tree::CODE_TERM && bucket_end > bucket_start + 1) {
+            msd_radix_sort_recursive<Alphabet>(indices, input_data, bucket_start, bucket_end, depth + 1);
         }
     }
 }
 
-}  // namespace
+}  // namespace detail_patricia_tree
 
 }  // namespace dt_patricia
