@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <stdexcept>
 
+namespace dt_patricia {
+
 struct UnitCost {
     static constexpr bool is_linear = true;
     static constexpr bool is_unit = true;
@@ -38,3 +40,5 @@ struct AffineGapCost {
         }
     }
 };
+
+}  // namespace dt_patricia

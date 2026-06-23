@@ -1,11 +1,11 @@
 #pragma once
 
-#include "PatriciaTree.hpp"
-#include "AlignmentResult.hpp"
-#include "WavefrontArray.hpp"
-#include "FastLCP.hpp"
-#include "CostType.hpp"
-#include "mod_utils.hpp"
+#include <dt_patricia/patricia_tree.hpp>
+#include <dt_patricia/alignment_result.hpp>
+#include <dt_patricia/internal/wavefront_array.hpp>
+#include <dt_patricia/internal/lcp.hpp>
+#include <dt_patricia/policy/cost.hpp>
+#include <dt_patricia/internal/mod_arithmetic.hpp>
 
 #include <iostream>
 #include <vector>
@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <queue>
 #include <array>
+
+namespace dt_patricia {
 
 template <typename CostType = UnitCost>
 class DTPatricia {
@@ -73,7 +75,7 @@ class DTPatricia {
     const PatriciaTree &_patricia_tree;
     CostType _cost;
 
-    void prune_by_upper_bound(WavefrontArray &wf_array,
+    void prune_by_upper_bound(internal::WavefrontArray &wf_array,
                 const std::vector<uint32_t> &subtree_max_lengths,
                 const std::vector<uint32_t> &subtree_min_lengths,
                 int32_t query_length,
@@ -81,25 +83,25 @@ class DTPatricia {
                 ) const requires (CostType::is_linear);
 
     template <bool only_m>
-    void prune_by_upper_bound(WavefrontArray &wf_array_d,
-                WavefrontArray &wf_array_m,
-                WavefrontArray &wf_array_i,
+    void prune_by_upper_bound(internal::WavefrontArray &wf_array_d,
+                internal::WavefrontArray &wf_array_m,
+                internal::WavefrontArray &wf_array_i,
                 const std::vector<uint32_t> &subtree_max_lengths,
                 const std::vector<uint32_t> &subtree_min_lengths,
                 int32_t query_length,
                 int upper_bound_remain
                 ) const requires (!CostType::is_linear);
 
-    void extend(const std::string_view query, WavefrontArray &wf_array,
-                    WavefrontArray &next_wf_array,
-                    WavefrontArray &child_wf_array,
-                    std::array<WavefrontArray, 5> &buffer,
+    void extend(const std::string_view query, internal::WavefrontArray &wf_array,
+                    internal::WavefrontArray &next_wf_array,
+                    internal::WavefrontArray &child_wf_array,
+                    std::array<internal::WavefrontArray, 5> &buffer,
                     const std::vector<uint32_t> &active_counts
                 ) const;
     
     void expand(const std::string_view query,
-                    std::vector<WavefrontArray> &wf_history,
-                    WavefrontArray &next_wf_array,
+                    std::vector<internal::WavefrontArray> &wf_history,
+                    internal::WavefrontArray &next_wf_array,
                     int32_t curr_idx,
                     size_t history_size,
                     const std::vector<uint32_t> &active_counts,
@@ -107,23 +109,25 @@ class DTPatricia {
                 ) const requires (CostType::is_linear);
 
     void expand(const std::string_view query,
-                    std::vector<WavefrontArray> &wf_history_d,
-                    std::vector<WavefrontArray> &wf_history_m,
-                    std::vector<WavefrontArray> &wf_history_i,
-                    WavefrontArray &next_wf_array_d,
-                    WavefrontArray &next_wf_array_m,
-                    WavefrontArray &next_wf_array_i,
+                    std::vector<internal::WavefrontArray> &wf_history_d,
+                    std::vector<internal::WavefrontArray> &wf_history_m,
+                    std::vector<internal::WavefrontArray> &wf_history_i,
+                    internal::WavefrontArray &next_wf_array_d,
+                    internal::WavefrontArray &next_wf_array_m,
+                    internal::WavefrontArray &next_wf_array_i,
                     int32_t curr_idx,
                     size_t history_size,
                     const std::vector<uint32_t> &active_counts,
-                    std::array<WavefrontArray, 5> &pending_d_buffer,
-                    WavefrontArray &pending_d,
-                    WavefrontArray &merged_wf_array_d,
+                    std::array<internal::WavefrontArray, 5> &pending_d_buffer,
+                    internal::WavefrontArray &pending_d,
+                    internal::WavefrontArray &merged_wf_array_d,
                     std::vector<int32_t> &expand_scratch
                 ) const requires (!CostType::is_linear);
 };
 
-#include "DT-Patricia_search_kernel.tpp"
-#include "DT-Patricia_extend.tpp"
-#include "DT-Patricia_expand.tpp"
-#include "DT-Patricia_pruning.tpp"
+}  // namespace dt_patricia
+
+#include <dt_patricia/internal/detail_aligner/search_kernel.tpp>
+#include <dt_patricia/internal/detail_aligner/extend.tpp>
+#include <dt_patricia/internal/detail_aligner/expand.tpp>
+#include <dt_patricia/internal/detail_aligner/pruning.tpp>

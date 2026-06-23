@@ -1,4 +1,6 @@
-#include "DT-Patricia.hpp"
+#include <dt_patricia/aligner.hpp>
+
+namespace dt_patricia {
 
 // =========================================================
 // テンプレート関数の実装
@@ -38,10 +40,10 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
         history_size = std::max(_cost.mismatch, _cost.gap) + 1;
     }
 
-    std::vector<WavefrontArray> wf_history(history_size);
-    WavefrontArray next_wf_array;
-    WavefrontArray child_wf_array;
-    std::array<WavefrontArray, PatriciaTree::CODE_MAX> buffer;
+    std::vector<internal::WavefrontArray> wf_history(history_size);
+    internal::WavefrontArray next_wf_array;
+    internal::WavefrontArray child_wf_array;
+    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> buffer;
     std::vector<int32_t> expand_scratch;
 
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
@@ -53,7 +55,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
 
     // Algorithm 1: DT-Patricia のメインループ
     while (true) {
-        WavefrontArray &curr_wf = wf_history[curr_idx];
+        internal::WavefrontArray &curr_wf = wf_history[curr_idx];
 
         if (curr_wf.empty()) {
             bool any_nonempty = false;
@@ -84,8 +86,8 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
         // 終端チェック: クエリ全体が処理されたノードを探す
         for (size_t idx = 0; idx < curr_wf.active_size(); ++idx) {
             uint64_t curr_vk = curr_wf.get_vk(idx);
-            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(curr_vk);
-            int32_t k = WavefrontArray::calc_k_from_vk(curr_vk);
+            uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(curr_vk);
+            int32_t k = internal::WavefrontArray::calc_k_from_vk(curr_vk);
             int32_t j = curr_wf.get_offset(idx);
             int32_t i = k + j;
 
@@ -126,7 +128,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
         // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts, expand_scratch);
 
-        uint32_t next_idx = increment_mod(curr_idx, history_size);
+        uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound(
                 wf_history[next_idx],
@@ -139,7 +141,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
 
         ++current_score;
         curr_idx = next_idx;
-        next_idx = increment_mod(next_idx, history_size);
+        next_idx = internal::increment_mod(next_idx, history_size);
 
         // 以降のループで使うことはないので履歴をリセット
         wf_history[next_idx].clear_logical_size();
@@ -176,17 +178,17 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
 
     uint32_t history_size = std::max({ _cost.mismatch, _cost.gap_open + _cost.gap_extend, _cost.gap_extend }) + 1;
 
-    std::vector<WavefrontArray> wf_history_d(history_size);
-    std::vector<WavefrontArray> wf_history_m(history_size);
-    std::vector<WavefrontArray> wf_history_i(history_size);
-    WavefrontArray next_wf_array_d;
-    WavefrontArray next_wf_array_m;
-    WavefrontArray next_wf_array_i;
-    WavefrontArray child_wf_array;
-    std::array<WavefrontArray, PatriciaTree::CODE_MAX> buffer;
+    std::vector<internal::WavefrontArray> wf_history_d(history_size);
+    std::vector<internal::WavefrontArray> wf_history_m(history_size);
+    std::vector<internal::WavefrontArray> wf_history_i(history_size);
+    internal::WavefrontArray next_wf_array_d;
+    internal::WavefrontArray next_wf_array_m;
+    internal::WavefrontArray next_wf_array_i;
+    internal::WavefrontArray child_wf_array;
+    std::array<internal::WavefrontArray, PatriciaTree::CODE_MAX> buffer;
 
-    WavefrontArray pending_d;
-    WavefrontArray merged_wf_array_d;
+    internal::WavefrontArray pending_d;
+    internal::WavefrontArray merged_wf_array_d;
     std::vector<int32_t> expand_scratch;
 
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
@@ -198,7 +200,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
 
     // Algorithm 1: DT-Patricia のメインループ
     while (true) {
-        WavefrontArray &curr_wf_m = wf_history_m[curr_idx];
+        internal::WavefrontArray &curr_wf_m = wf_history_m[curr_idx];
         if (curr_wf_m.empty()) {
             bool any_nonempty = false;
             for (size_t h = 0; h < history_size; ++h) {
@@ -245,8 +247,8 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
         // 終端チェック: クエリ全体が処理されたノードを探す
         for (size_t idx = 0; idx < curr_wf_m.active_size(); ++idx) {
             uint64_t curr_vk = curr_wf_m.get_vk(idx);
-            uint32_t node_id = WavefrontArray::calc_node_id_from_vk(curr_vk);
-            int32_t k = WavefrontArray::calc_k_from_vk(curr_vk);
+            uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(curr_vk);
+            int32_t k = internal::WavefrontArray::calc_k_from_vk(curr_vk);
             int32_t j = curr_wf_m.get_offset(idx);
             int32_t i = k + j;
 
@@ -288,7 +290,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
             next_wf_array_d, next_wf_array_m, next_wf_array_i,
             curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d, expand_scratch);
-        uint32_t next_idx = increment_mod(curr_idx, history_size);
+        uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
                 wf_history_d[next_idx],
@@ -303,7 +305,7 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
 
         ++current_score;
         curr_idx = next_idx;
-        next_idx = increment_mod(next_idx, history_size);
+        next_idx = internal::increment_mod(next_idx, history_size);
 
         // 以降のループで使うことはないので履歴をリセット
         wf_history_d[next_idx].clear_logical_size();
@@ -312,3 +314,5 @@ std::vector<AlignmentResult> DTPatricia<CostType>::search_kernel(
     }
     return results;
 }
+
+}  // namespace dt_patricia

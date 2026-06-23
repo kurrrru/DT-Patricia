@@ -8,6 +8,8 @@
 #include <numeric>
 #include <cassert>
 
+namespace dt_patricia::internal {
+
 class WavefrontArray {
  public:
     // =========================================================
@@ -129,3 +131,5 @@ class WavefrontArray {
     std::vector<int32_t> _offsets;
     size_t _active_size = 0;
 };
+
+}  // namespace dt_patricia::internal

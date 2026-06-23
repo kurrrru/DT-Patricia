@@ -1,4 +1,4 @@
-#include "PatriciaTree.hpp"
+#include <dt_patricia/patricia_tree.hpp>
 
 #include <algorithm>
 #include <iostream>
@@ -9,6 +9,8 @@
 #include <string_view>
 #include <optional>
 #include <span>
+
+namespace dt_patricia {
 
 namespace {
     // MSD Radix Sortの実装
@@ -321,4 +323,6 @@ void msd_radix_sort_recursive(
     }
 }
 
-}
+}  // namespace
+
+}  // namespace dt_patricia

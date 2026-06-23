@@ -1,11 +1,11 @@
 #pragma once
-#include "PatriciaTree.hpp"
+#include <dt_patricia/patricia_tree.hpp>
 #include <iostream>
 #include <string>
 
-namespace patricia_debug {
+namespace dt_patricia::debug {
 
-    namespace internal {
+    namespace graphviz {
         inline void dump_recursive(const PatriciaTree& tree, uint32_t node_id, int depth,
                                    const std::vector<uint32_t>& counts,
                                    const std::vector<uint32_t>& min_lens,
@@ -36,13 +36,13 @@ namespace patricia_debug {
                 }
             }
         }
-    } // namespace internal
+    } // namespace graphviz
 
     inline void dump_to_dot(const PatriciaTree& tree) {
         std::cout << "digraph PatriciaTree {\n";
         
         // 再帰のたびにゲッターを呼ぶオーバーヘッドを避けるため、一度だけ取得して参照渡しする
-        internal::dump_recursive(tree, tree.root_id(), 0,
+        graphviz::dump_recursive(tree, tree.root_id(), 0,
                                  tree.get_subtree_counts(),
                                  tree.get_subtree_min_lengths(),
                                  tree.get_subtree_max_lengths());
@@ -50,4 +50,4 @@ namespace patricia_debug {
         std::cout << "}\n";
     }
 
-} // namespace patricia_debug
+} // namespace dt_patricia::debug

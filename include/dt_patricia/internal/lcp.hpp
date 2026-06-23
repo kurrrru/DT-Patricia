@@ -12,6 +12,8 @@
     #include <arm_neon.h>
 #endif
 
+namespace dt_patricia::internal {
+
 /**
  * @brief パディングを前提とした完全無分岐・SIMD最適化LCP (Longest Common Prefix) 計算
  * @param s1 比較文字列1のポインタ
@@ -110,3 +112,5 @@ inline size_t fast_lcp(const char* s1, const char* s2, size_t max_len) {
     // 完全一致でループを抜け、max_lenに到達した場合
     return std::min(matched, max_len);
 }
+
+}  // namespace dt_patricia::internal
