@@ -60,11 +60,11 @@ struct DnaAlphabet {
     static constexpr uint8_t CODE_MAX  = 5;
 
     static consteval std::array<uint8_t, 256> make_char_to_code() noexcept {
-        constexpr uint8_t CODE_A     = 1;
-        constexpr uint8_t CODE_C     = 2;
-        constexpr uint8_t CODE_G     = 3;
-        constexpr uint8_t CODE_T     = 4;
-        constexpr uint8_t CODE_OTHER = 5;
+        constexpr uint8_t CODE_A     = 1;  // Adenine
+        constexpr uint8_t CODE_C     = 2;  // Cytosine
+        constexpr uint8_t CODE_G     = 3;  // Guanine
+        constexpr uint8_t CODE_T     = 4;  // Thymine
+        constexpr uint8_t CODE_OTHER = 5;  // Other
 
         std::array<uint8_t, 256> table{};
         table.fill(CODE_OTHER);
@@ -94,9 +94,9 @@ struct RyAlphabet {
     static constexpr uint8_t CODE_MAX  = 3;
 
     static consteval std::array<uint8_t, 256> make_char_to_code() noexcept {
-        constexpr uint8_t CODE_R     = 1;
-        constexpr uint8_t CODE_Y     = 2;
-        constexpr uint8_t CODE_OTHER = 3;
+        constexpr uint8_t CODE_R     = 1;  // purine (A/G)
+        constexpr uint8_t CODE_Y     = 2;  // pyrimidine (C/T/U)
+        constexpr uint8_t CODE_OTHER = 3;  // Other
 
         std::array<uint8_t, 256> table{};
         table.fill(CODE_OTHER);
@@ -120,7 +120,70 @@ struct RyAlphabet {
     }
 };
 
+// =========================================================
+// Protein alphabet: 20 種のアミノ酸 (A C D E F G H I K L M N P Q R S T V W Y) + その他
+// =========================================================
+struct ProteinAlphabet {
+    static constexpr uint8_t CODE_TERM = 0;
+    static constexpr uint8_t CODE_MAX  = 21;
+
+    static consteval std::array<uint8_t, 256> make_char_to_code() noexcept {
+        constexpr uint8_t CODE_A     = 1;   // Alanine
+        constexpr uint8_t CODE_C     = 2;   // Cysteine
+        constexpr uint8_t CODE_D     = 3;   // Aspartic acid
+        constexpr uint8_t CODE_E     = 4;   // Glutamic acid
+        constexpr uint8_t CODE_F     = 5;   // Phenylalanine
+        constexpr uint8_t CODE_G     = 6;   // Glycine
+        constexpr uint8_t CODE_H     = 7;   // Histidine
+        constexpr uint8_t CODE_I     = 8;   // Isoleucine
+        constexpr uint8_t CODE_K     = 9;   // Lysine
+        constexpr uint8_t CODE_L     = 10;  // Leucine
+        constexpr uint8_t CODE_M     = 11;  // Methionine
+        constexpr uint8_t CODE_N     = 12;  // Asparagine
+        constexpr uint8_t CODE_P     = 13;  // Proline
+        constexpr uint8_t CODE_Q     = 14;  // Glutamine
+        constexpr uint8_t CODE_R     = 15;  // Arginine
+        constexpr uint8_t CODE_S     = 16;  // Serine
+        constexpr uint8_t CODE_T     = 17;  // Threonine
+        constexpr uint8_t CODE_V     = 18;  // Valine
+        constexpr uint8_t CODE_W     = 19;  // Tryptophan
+        constexpr uint8_t CODE_Y     = 20;  // Tyrosine
+        constexpr uint8_t CODE_OTHER = 21;  // Other
+
+        std::array<uint8_t, 256> table{};
+        table.fill(CODE_OTHER);
+
+        table['\0'] = CODE_TERM;
+
+        table['A'] = CODE_A; table['a'] = CODE_A;
+        table['C'] = CODE_C; table['c'] = CODE_C;
+        table['D'] = CODE_D; table['d'] = CODE_D;
+        table['E'] = CODE_E; table['e'] = CODE_E;
+        table['F'] = CODE_F; table['f'] = CODE_F;
+        table['G'] = CODE_G; table['g'] = CODE_G;
+        table['H'] = CODE_H; table['h'] = CODE_H;
+        table['I'] = CODE_I; table['i'] = CODE_I;
+        table['K'] = CODE_K; table['k'] = CODE_K;
+        table['L'] = CODE_L; table['l'] = CODE_L;
+        table['M'] = CODE_M; table['m'] = CODE_M;
+        table['N'] = CODE_N; table['n'] = CODE_N;
+        table['P'] = CODE_P; table['p'] = CODE_P;
+        table['Q'] = CODE_Q; table['q'] = CODE_Q;
+        table['R'] = CODE_R; table['r'] = CODE_R;
+        table['S'] = CODE_S; table['s'] = CODE_S;
+        table['T'] = CODE_T; table['t'] = CODE_T;
+        table['V'] = CODE_V; table['v'] = CODE_V;
+        table['W'] = CODE_W; table['w'] = CODE_W;
+        table['Y'] = CODE_Y; table['y'] = CODE_Y;
+
+        // B/J/O/U/X/Z や曖昧文字・その他は CODE_OTHER に落ちる
+
+        return table;
+    }
+};
+
 static_assert(AlphabetPolicy<DnaAlphabet>);
 static_assert(AlphabetPolicy<RyAlphabet>);
+static_assert(AlphabetPolicy<ProteinAlphabet>);
 
 }  // namespace dt_patricia
