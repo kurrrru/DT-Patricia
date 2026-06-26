@@ -27,6 +27,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     // クエリのパディング処理
     // =========================================================
     std::string padded_query_str = query;
+    canonicalize_inplace<Alphabet>(padded_query_str.data(), query.length());
     padded_query_str.append(tree_type::SIMD_PADDING_SIZE, '\0');
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
@@ -168,6 +169,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     // クエリのパディング処理
     // =========================================================
     std::string padded_query_str = query;
+    canonicalize_inplace<Alphabet>(padded_query_str.data(), query.length());
     padded_query_str.append(tree_type::SIMD_PADDING_SIZE, '\0');
     std::string_view padded_query(padded_query_str.data(), query.length());
     const int32_t query_length = static_cast<int32_t>(padded_query.length());
