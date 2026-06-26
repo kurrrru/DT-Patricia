@@ -25,12 +25,12 @@ consteval bool validate_alphabet_policy() {
         return false;
     }
 
-    constexpr auto CHAT_TO_CODE = Alphabet::make_char_to_code();
+    constexpr auto CHAR_TO_CODE = Alphabet::make_char_to_code();
 
-    if (CHAT_TO_CODE['\0'] != Alphabet::CODE_TERM) {
+    if (CHAR_TO_CODE['\0'] != Alphabet::CODE_TERM) {
         return false;
     }
-    for (uint8_t code : CHAT_TO_CODE) {
+    for (uint8_t code : CHAR_TO_CODE) {
         if (code > Alphabet::CODE_MAX) {
             return false;
         }
@@ -42,7 +42,7 @@ consteval bool validate_alphabet_policy() {
     }
     for (uint8_t code = 0; code <= Alphabet::CODE_MAX; ++code) {
         char ch = CODE_TO_CHAR[code];
-        if (CHAT_TO_CODE[static_cast<uint8_t>(ch)] != code) {
+        if (CHAR_TO_CODE[static_cast<uint8_t>(ch)] != code) {
             return false;
         }
     }
