@@ -140,20 +140,21 @@ void PatriciaTree<Alphabet>::build_node_bfs(
     // 1. ラベル（共通接頭辞）の決定
     const std::string &first_str = input_data[sorted_indices[start_idx]];
     const std::string &last_str  = input_data[sorted_indices[end_idx - 1]];
-
-    auto it_first = first_str.begin() + label_offset;
-    auto it_last  = last_str.begin() + label_offset;
-    auto mismatch_pair = std::mismatch(
-        it_first, first_str.end(),
-        it_last,  last_str.end()
-    );
-    size_t lcp_len = mismatch_pair.first - it_first;
+    size_t max_lcp = std::min(first_str.size(), last_str.size()) - label_offset;
+    size_t lcp_len = 0;
+    while (lcp_len < max_lcp &&
+        CHAR_TO_CODE[static_cast<unsigned char>(first_str[label_offset + lcp_len])] ==
+        CHAR_TO_CODE[static_cast<unsigned char>(last_str [label_offset + lcp_len])]) {
+        ++lcp_len;
+    }
 
     _label_offset[node_id] = static_cast<uint32_t>(TEXT_POOL.size());
     _label_len[node_id]    = static_cast<uint32_t>(lcp_len);
 
     if (lcp_len > 0) {
+        size_t pool_pos = TEXT_POOL.size();
         TEXT_POOL.append(first_str, label_offset, lcp_len);
+        canonicalize_inplace<Alphabet>(TEXT_POOL.data() + pool_pos, lcp_len);
     }
 
     size_t current_offset = label_offset + lcp_len;
