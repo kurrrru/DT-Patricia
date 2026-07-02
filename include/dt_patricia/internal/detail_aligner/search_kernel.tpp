@@ -19,7 +19,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     const std::vector<uint32_t>& subtree_max_lengths = _patricia_tree.get_subtree_max_lengths();
     const std::vector<uint32_t>& subtree_min_lengths = _patricia_tree.get_subtree_min_lengths();
 
-    if (_patricia_tree.empty() || query.empty()) {
+    if (_patricia_tree.empty()) {
         return results;
     }
 
@@ -161,7 +161,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();
 
-    if (_patricia_tree.empty() || query.empty()) {
+    if (_patricia_tree.empty()) {
         return results;
     }
 
