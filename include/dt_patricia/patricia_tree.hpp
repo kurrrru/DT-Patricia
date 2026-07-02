@@ -19,7 +19,7 @@ public:
     // =========================================================
     
     // デフォルトコンストラクタ
-    PatriciaTree() = default;
+    PatriciaTree() = delete;
 
     // コンストラクタ（内部で build を呼ぶ）
     explicit PatriciaTree(const std::vector<std::string> &input_data);
