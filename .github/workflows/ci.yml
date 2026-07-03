@@ -6,36 +6,36 @@ on:
   pull_request:
 
 jobs:
-  test:
+  gcc:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        compiler:
-          - { cc: gcc,   cxx: g++ }
-          - { cc: clang, cxx: clang++ }
     env:
-      CC: $ matrix.compiler.cc 
-      CXX: $ matrix.compiler.cxx 
+      CC: gcc
+      CXX: g++
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - run: python3 tests/scripts/gen_random_tests.py
+      - run: cmake --preset tests
+      - run: cmake --build --preset tests
+      - run: ctest --preset tests
 
-      - name: Generate random testcases
-        run: python3 tests/scripts/gen_random_tests.py
-
-      - name: Configure
-        run: cmake --preset tests
-
-      - name: Build
-        run: cmake --build --preset tests
-
-      - name: Test
-        run: ctest --preset tests
+  clang:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python3 tests/scripts/gen_random_tests.py
+      - run: cmake --preset tests
+      - run: cmake --build --preset tests
+      - run: ctest --preset tests
