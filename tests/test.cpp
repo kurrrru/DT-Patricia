@@ -4,10 +4,10 @@
 //
 // [Usage]
 //   # Test all .txt files in the testcase/ directory
-//   ./test_executable
+//   ./brute_test
 //
 //   # Test specific testcase files (multiple allowed)
-//   ./test_executable testcase/01_unit_basic.txt testcase/04_linear_basic.txt
+//   ./brute_test testcase/01_unit_basic.txt testcase/04_linear_basic.txt
 //
 // [Testcase file format]
 //   - Lines beginning with # are treated as comments and ignored
