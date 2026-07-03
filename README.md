@@ -27,8 +27,8 @@ cmake --build --preset debug
 cmake -S . -B build/tests \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-  -DDTPB_BUILD_TESTS=ON \
-  -DDTPB_BUILD_BENCHMARK=OFF
+  -DDT_PATRICIA_BUILD_TESTS=ON \
+  -DDT_PATRICIA_BUILD_EXAMPLES=OFF
 cmake --build build/tests
 ctest --test-dir build/tests --output-on-failure
 ```
