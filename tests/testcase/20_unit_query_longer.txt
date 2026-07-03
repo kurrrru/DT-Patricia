@@ -1,0 +1,23 @@
+# UnitCost: クエリがすべてのターゲットより長いケース
+COST UnitCost
+
+TARGETS
+A
+AC
+ACG
+ACGT
+TG
+GA
+CC
+
+QUERIES
+ACGTACGT
+TTTTTTTT
+ACGTA
+
+TESTS
+ed_within_k 3
+ed_within_k 6
+ed_kth_smallest 2
+ed_kth_smallest 4
+ed_to_all

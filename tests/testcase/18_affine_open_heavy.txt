@@ -1,0 +1,26 @@
+# AffineGapCost(mismatch=2, open=5, extend=1): ギャップ開始コストが重い
+# 1 個だけの単発ギャップより連続ギャップ/置換が有利になりやすい
+COST AffineGapCost 2 5 1
+
+TARGETS
+ACGTACGT
+ACGTGTACGT
+ACGT
+ACGTACGTACGT
+AACGTACGTT
+TTTTACGT
+ACGTTTTT
+CCCCCCCC
+
+QUERIES
+ACGTACGT
+ACGTACGTACGT
+ACGT
+TTTTTTTT
+
+TESTS
+ed_within_k 4
+ed_within_k 8
+ed_kth_smallest 2
+ed_kth_smallest 4
+ed_to_all

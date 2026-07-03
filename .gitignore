@@ -2,6 +2,9 @@
 .DS_Store
 build/
 
+tests/testcase_random/*
+!tests/testcase_random/.gitkeep
+
 # Prerequisites
 *.d
 *.md

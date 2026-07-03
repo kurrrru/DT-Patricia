@@ -1,0 +1,18 @@
+# One letter unit
+COST UnitCost
+
+TARGETS
+C
+
+QUERIES
+A
+C
+G
+T
+
+TESTS
+ed_within_k 1
+ed_within_k 2
+ed_kth_smallest 1
+ed_kth_smallest 3
+ed_to_all

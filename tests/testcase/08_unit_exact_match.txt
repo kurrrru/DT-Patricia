@@ -1,0 +1,26 @@
+# UnitCost: クエリがターゲットに完全一致するケース
+# 完全一致 (score=0) が必ず 1 件返ること、および周辺距離の確認
+COST UnitCost
+
+TARGETS
+ATCG
+ATCGATCG
+GCTA
+GCTAATCG
+TTTTAAAA
+AAAATTTT
+ACGT
+TGCA
+
+QUERIES
+ATCG
+ATCGATCG
+GCTA
+ACGT
+
+TESTS
+ed_within_k 0
+ed_within_k 1
+ed_within_k 2
+ed_kth_smallest 1
+ed_to_all

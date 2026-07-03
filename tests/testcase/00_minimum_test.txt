@@ -1,0 +1,14 @@
+# Minimum test
+COST UnitCost
+
+TARGETS
+AA
+CT
+GA
+GC
+
+QUERIES
+AC
+
+TESTS
+ed_within_k 1

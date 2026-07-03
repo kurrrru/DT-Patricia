@@ -1,0 +1,22 @@
+# AffineGapCost(mismatch=2, open=1, extend=1): 長いギャップが得になるケース
+# open が小さいため、長い連続ギャップ (open+extend*L) が有利
+COST AffineGapCost 2 1 1
+
+TARGETS
+ACGTACGT
+ACGT
+AAAAACGTACGT
+ACGTACGTTTTT
+TTTTACGTACGT
+CCCCCCCC
+ACGTTTTTACGT
+
+QUERIES
+ACGTACGT
+ACGT
+TTTTACGT
+
+TESTS
+ed_within_k 4
+ed_kth_smallest 3
+ed_to_all
