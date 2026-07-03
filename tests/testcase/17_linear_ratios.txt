@@ -1,0 +1,28 @@
+# LinearGapCost(mismatch=3, gap=1): ギャップが置換より安いケース
+# 置換よりも挿入/削除が選ばれやすくなる
+COST LinearGapCost 3 1
+
+TARGETS
+ACGT
+ACGTAC
+ACGTACGT
+AC
+CGTA
+GTACGT
+TTTT
+AAAA
+ACGTTGCA
+TGCAACGT
+
+QUERIES
+ACGT
+ACGTACGT
+ACG
+GTAC
+
+TESTS
+ed_within_k 2
+ed_within_k 4
+ed_kth_smallest 2
+ed_kth_smallest 5
+ed_to_all

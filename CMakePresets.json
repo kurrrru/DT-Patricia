@@ -12,7 +12,8 @@
             "binaryDir": "${sourceDir}/build/default",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "DT_PATRICIA_BUILD_EXAMPLES": "ON"
+                "DT_PATRICIA_BUILD_EXAMPLES": "ON",
+                "DT_PATRICIA_BUILD_TESTS": "OFF"
             }
         },
         {
@@ -21,7 +22,18 @@
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "DT_PATRICIA_BUILD_EXAMPLES": "ON"
+                "DT_PATRICIA_BUILD_EXAMPLES": "ON",
+                "DT_PATRICIA_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "tests",
+            "displayName": "Tests",
+            "binaryDir": "${sourceDir}/build/tests",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "DT_PATRICIA_BUILD_EXAMPLES": "OFF",
+                "DT_PATRICIA_BUILD_TESTS": "ON"
             }
         }
     ],
@@ -33,6 +45,19 @@
         {
             "name": "debug",
             "configurePreset": "debug"
+        },
+        {
+            "name": "tests",
+            "configurePreset": "tests"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "tests",
+            "configurePreset": "tests",
+            "output": {
+                "outputOnFailure": true
+            }
         }
     ]
 }

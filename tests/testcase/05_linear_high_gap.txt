@@ -1,0 +1,26 @@
+# LinearGapCost(mismatch=2, gap=1): 置換コストがギャップより高いケース
+# 長さの差が大きい文字列ペアでギャップより挿入/削除が得になる
+COST LinearGapCost 2 1
+
+TARGETS
+ACGT
+AACGT
+AACGTT
+AAACGTTT
+CGT
+CGT
+TACGT
+ACGTA
+TTTT
+AAAA
+
+QUERIES
+ACGT
+CGT
+AACGT
+
+TESTS
+ed_within_k 2
+ed_within_k 3
+ed_kth_smallest 3
+ed_to_all

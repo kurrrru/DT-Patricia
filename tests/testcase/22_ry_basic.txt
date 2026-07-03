@@ -1,0 +1,30 @@
+# RyAlphabet: purine(A/G) と pyrimidine(C/T/U) に潰して比較するケース
+# A と G、C と T が同一コードになるため、塩基が違っても距離 0 になりうる
+ALPHABET RyAlphabet
+COST UnitCost
+
+TARGETS
+ACGT
+AGCT
+GACT
+ACAC
+GTGT
+TTTT
+AAAA
+CGCG
+GATC
+ACGTACGT
+
+QUERIES
+ACGT
+GGGG
+CTCT
+ACGTACGT
+
+TESTS
+ed_within_k 0
+ed_within_k 1
+ed_within_k 2
+ed_kth_smallest 1
+ed_kth_smallest 4
+ed_to_all

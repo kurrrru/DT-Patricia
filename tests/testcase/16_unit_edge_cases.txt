@@ -1,0 +1,29 @@
+# UnitCost: 短い配列・長さ1クエリ・全置換などのエッジケース
+COST UnitCost
+
+TARGETS
+A
+C
+G
+T
+AC
+CA
+ACGTACGTACGT
+GGGGGGGGGGGG
+ACA
+TGT
+
+QUERIES
+A
+G
+ACGT
+GGGG
+TTTTTTTTTTTT
+
+TESTS
+ed_within_k 0
+ed_within_k 1
+ed_within_k 3
+ed_kth_smallest 1
+ed_kth_smallest 5
+ed_to_all

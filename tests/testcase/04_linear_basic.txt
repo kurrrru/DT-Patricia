@@ -1,0 +1,27 @@
+# LinearGapCost(mismatch=1, gap=2): ギャップコストが置換より高いケース
+COST LinearGapCost 1 2
+
+TARGETS
+ACGT
+ATCG
+AACT
+AGCT
+ACGG
+TGCA
+AAAA
+CCCC
+ATCGATCG
+GGGGCCCC
+
+QUERIES
+ACGT
+AACT
+AT
+ATCG
+
+TESTS
+ed_within_k 2
+ed_within_k 4
+ed_kth_smallest 2
+ed_kth_smallest 4
+ed_to_all

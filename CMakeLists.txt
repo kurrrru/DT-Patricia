@@ -50,3 +50,9 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/dt_patricia-config-version.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/dt_patricia
 )
+
+option(DT_PATRICIA_BUILD_TESTS "Build the tests" ${PROJECT_IS_TOP_LEVEL})
+if(DT_PATRICIA_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

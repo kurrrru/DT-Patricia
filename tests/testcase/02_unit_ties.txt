@@ -1,0 +1,27 @@
+# UnitCost: ed_kth_smallest での同点 (tie) 処理の検証
+# k 番目のスコアと同スコアの文字列が複数存在するケース
+COST UnitCost
+
+TARGETS
+AAAA
+TTTT
+CCCC
+GGGG
+AATT
+TTAA
+CCGG
+GGCC
+ACGT
+TGCA
+
+QUERIES
+AAAA
+ACGT
+ATAT
+
+TESTS
+ed_kth_smallest 1
+ed_kth_smallest 2
+ed_kth_smallest 4
+ed_kth_smallest 5
+ed_to_all

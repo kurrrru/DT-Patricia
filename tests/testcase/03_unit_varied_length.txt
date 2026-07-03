@@ -1,0 +1,30 @@
+# UnitCost: 長さが大きく異なる target が混在するケース
+COST UnitCost
+
+TARGETS
+A
+AT
+ACG
+ACGT
+ATCGA
+ATCGAT
+ATCGATCG
+AAAAAAAAAA
+TTTTTTTTTT
+GCGCGCGCGC
+ATATATATATAT
+ATATATATATAT
+ATATATATATAT
+
+QUERIES
+A
+ACG
+ATCG
+AAAAAA
+GCGCGC
+
+TESTS
+ed_within_k 2
+ed_within_k 4
+ed_kth_smallest 3
+ed_to_all

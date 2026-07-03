@@ -1,0 +1,26 @@
+# AffineGapCost(mismatch=1, open=2, extend=1): アフィンギャップの基本テスト
+# 連続ギャップが有利になるケースを含む
+COST AffineGapCost 1 2 1
+
+TARGETS
+ACGT
+AACGT
+AAAAACGT
+CGT
+ACGTTTTT
+TTACGT
+ACGTACGT
+GGGG
+CCCC
+
+QUERIES
+ACGT
+AACGT
+ACGTTT
+
+TESTS
+ed_within_k 3
+ed_within_k 5
+ed_kth_smallest 2
+ed_kth_smallest 4
+ed_to_all

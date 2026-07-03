@@ -1,0 +1,29 @@
+# UnitCost: 重複したターゲット文字列を含むケース
+# 同一スコアの tie が string_id 昇順で安定に並ぶことを検証
+COST UnitCost
+
+TARGETS
+ACGT
+ACGT
+ACGT
+TTTT
+TTTT
+AAAA
+CGCG
+CGCG
+GATC
+GATC
+
+QUERIES
+ACGT
+TTTT
+CGCG
+AAAA
+
+TESTS
+ed_within_k 0
+ed_within_k 2
+ed_kth_smallest 1
+ed_kth_smallest 3
+ed_kth_smallest 6
+ed_to_all
