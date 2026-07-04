@@ -2,10 +2,10 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
+#include <span>
 #include <string>
 #include <string_view>
-#include <span>
+#include <vector>
 
 #include <dt_patricia/policy/alphabet.hpp>
 
@@ -13,11 +13,11 @@ namespace dt_patricia {
 
 template <AlphabetPolicy Alphabet = DnaAlphabet>
 class PatriciaTree {
-public:
+ public:
     // =========================================================
     // 1. コンストラクタ / デストラクタ (Rule of Five)
     // =========================================================
-    
+
     // デフォルトコンストラクタ
     PatriciaTree() = delete;
 
@@ -29,27 +29,23 @@ public:
 
     // コピー
     // 辞書は大きくなるので、コピーは禁止する
-    PatriciaTree(const PatriciaTree&) = delete;
-    PatriciaTree &operator=(const PatriciaTree&) = delete;
+    PatriciaTree(const PatriciaTree &) = delete;
+    PatriciaTree &operator=(const PatriciaTree &) = delete;
 
     // ムーブ
-    PatriciaTree(PatriciaTree&&) noexcept = default;
-    PatriciaTree &operator=(PatriciaTree&&) noexcept = default;
+    PatriciaTree(PatriciaTree &&) noexcept = default;
+    PatriciaTree &operator=(PatriciaTree &&) noexcept = default;
 
     // =========================================================
     // 2. 公開API
     // =========================================================
 
     // ツリーが空かどうかを返す
-    [[nodiscard]] inline bool empty() const noexcept {
-        return _base.empty();
-    }
+    [[nodiscard]] inline bool empty() const noexcept { return _base.empty(); }
 
     // ルートノードのIDを取得
     // ノード0を無効値とし、ルートをノード1とする
-    [[nodiscard]] inline uint32_t root_id() const noexcept {
-        return 1;
-    }
+    [[nodiscard]] inline uint32_t root_id() const noexcept { return 1; }
 
     // ノード node_id から 文字 ch で遷移できるか？
     // 遷移できれば次のノードID、できなければ 0 (無効値) を返す
@@ -104,9 +100,7 @@ public:
         return std::span<const uint32_t>(_string_ids.data() + offset, count);
     }
 
-    [[nodiscard]] inline uint32_t string_count() const noexcept {
-        return _size;
-    }
+    [[nodiscard]] inline uint32_t string_count() const noexcept { return _size; }
 
     [[nodiscard]] inline uint32_t node_count() const noexcept {
         return static_cast<uint32_t>(_base.size());
@@ -116,15 +110,15 @@ public:
         return _label_len[node_id];
     }
 
-    [[nodiscard]] inline const std::vector<uint32_t>& get_subtree_counts() const noexcept {
+    [[nodiscard]] inline const std::vector<uint32_t> &get_subtree_counts() const noexcept {
         return _subtree_counts;
     }
 
-    [[nodiscard]] inline const std::vector<uint32_t>& get_subtree_max_lengths() const noexcept {
+    [[nodiscard]] inline const std::vector<uint32_t> &get_subtree_max_lengths() const noexcept {
         return _subtree_max_len;
     }
 
-    [[nodiscard]] inline const std::vector<uint32_t>& get_subtree_min_lengths() const noexcept {
+    [[nodiscard]] inline const std::vector<uint32_t> &get_subtree_min_lengths() const noexcept {
         return _subtree_min_len;
     }
 
@@ -135,31 +129,37 @@ public:
         return _check[node_id];
     }
 
-private:
+ private:
     uint32_t _size;  // 登録されている文字列数
 
     std::vector<uint32_t> _base;  // indexはノードID、値はベース値
-    std::vector<uint32_t> _check;  // indexはノードID、値は親ノードID（不正ノード、ルートノードの場合は0）
-    
+    std::vector<uint32_t>
+        _check;  // indexはノードID、値は親ノードID（不正ノード、ルートノードの場合は0）
+
     // ラベル情報
     // std::string_viewを使わずに、オフセットと長さで管理する方式
     // TEXT_POOLがリサイズされてもラベル情報が壊れないようにするため
     std::vector<uint32_t> _label_offset;  // indexはノードID
-    std::vector<uint32_t> _label_len;  // indexはノードID
+    std::vector<uint32_t> _label_len;     // indexはノードID
 
     // 文字列の実体プール
     // _label_offsetと_label_lenで参照される
-    std::string TEXT_POOL; 
+    std::string TEXT_POOL;
 
     // ノードIDから対応する単語IDを取得するテーブル
     // そのノードが単語終端であるかを事前に必ず確認すること
-    std::vector<uint32_t> _string_ids_offset; // index=ノードID, 値=_string_idsプール内の開始位置
-    std::vector<uint32_t> _string_ids_count;  // index=ノードID, 値=そのノードに紐づくIDの個数
-    std::vector<uint32_t> _string_ids;        // 全てのIDを隙間なく詰め込んだ巨大配列
+    std::vector<uint32_t> _string_ids_offset;  // index=ノードID, 値=_string_idsプール内の開始位置
+    std::vector<uint32_t> _string_ids_count;   // index=ノードID, 値=そのノードに紐づくIDの個数
+    std::vector<uint32_t> _string_ids;         // 全てのIDを隙間なく詰め込んだ巨大配列
 
-    std::vector<uint32_t> _subtree_counts;   // index=ノードID, 値=そのノードを根とする部分木に含まれる単語数
-    std::vector<uint32_t> _subtree_max_len;  // index=ノードID, 値=そのノードから部分木の葉までの文字列の最大長(そのノードのラベル長を含む)
-    std::vector<uint32_t> _subtree_min_len;  // index=ノードID, 値=そのノードから部分木の葉までの文字列の最小長(そのノードのラベル長を含む)
+    std::vector<uint32_t>
+        _subtree_counts;  // index=ノードID, 値=そのノードを根とする部分木に含まれる単語数
+    std::vector<uint32_t>
+        _subtree_max_len;  // index=ノードID,
+                           // 値=そのノードから部分木の葉までの文字列の最大長(そのノードのラベル長を含む)
+    std::vector<uint32_t>
+        _subtree_min_len;  // index=ノードID,
+                           // 値=そのノードから部分木の葉までの文字列の最小長(そのノードのラベル長を含む)
 
     // 内部ビルド関数
     struct QueueItem {
@@ -168,15 +168,12 @@ private:
         size_t end_idx;
         size_t label_offset;
     };
-    
-    void build(const std::vector<std::string> &input_data, const std::vector<uint32_t> &sorted_indices);
-    void build_node_bfs(uint32_t node_id,
-                        size_t start_idx,
-                        size_t end_idx,
-                        size_t label_offset,
+
+    void build(const std::vector<std::string> &input_data,
+               const std::vector<uint32_t> &sorted_indices);
+    void build_node_bfs(uint32_t node_id, size_t start_idx, size_t end_idx, size_t label_offset,
                         const std::vector<std::string> &input_data,
-                        const std::vector<uint32_t> &sorted_indices,
-                        std::vector<QueueItem> &queue);
+                        const std::vector<uint32_t> &sorted_indices, std::vector<QueueItem> &queue);
     void compute_subtree_length_bounds();
 
  public:
@@ -191,13 +188,12 @@ private:
 
     // alphabet policy から取得する定数
     static constexpr uint8_t CODE_TERM = Alphabet::CODE_TERM;  // 終端コード (必ず 0)
-    static constexpr uint8_t CODE_MAX  = Alphabet::CODE_MAX;   // 最大コード値
+    static constexpr uint8_t CODE_MAX = Alphabet::CODE_MAX;    // 最大コード値
     static constexpr std::size_t BUCKET_SIZE =
-        static_cast<std::size_t>(CODE_MAX) + 1;               // コード 0..CODE_MAX のバケット数
+        static_cast<std::size_t>(CODE_MAX) + 1;  // コード 0..CODE_MAX のバケット数
 
     // char -> code 変換テーブル（alphabet policy が consteval で生成、コンパイル時に計算完了）
-    inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE =
-        Alphabet::make_char_to_code();
+    inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_char_to_code();
 };
 
 }  // namespace dt_patricia

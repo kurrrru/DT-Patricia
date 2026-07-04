@@ -9,8 +9,6 @@
 //     3) Query with ed_to_all / ed_within_k / ed_kth_smallest,
 //        or call search_kernel directly with your own stop predicate
 
-#include <dt_patricia/dt_patricia.hpp>
-
 #include <chrono>
 #include <cstddef>
 #include <iomanip>
@@ -18,9 +16,11 @@
 #include <string>
 #include <vector>
 
+#include <dt_patricia/dt_patricia.hpp>
+
 namespace {
 
-void print_header(const std::string& title) {
+void print_header(const std::string &title) {
     std::cout << "\n========== " << title << " ==========" << std::endl;
 }
 
@@ -28,15 +28,12 @@ void print_header(const std::string& title) {
 //   string_id : index into the original `targets` dictionary (input order)
 //   score     : edit distance (cost) from the query
 // The results come back sorted by ascending score, so we print them as-is.
-void print_results(const std::vector<std::string>& targets,
-                   const std::string& query,
-                   const std::vector<dt_patricia::AlignmentResult>& results) {
-    std::cout << "  query = \"" << query << "\"  (" << results.size()
-              << " hit)" << std::endl;
-    for (const auto& r : results) {
-        std::cout << "    score=" << std::setw(2) << r.score
-                  << "  id=" << std::setw(2) << r.string_id
-                  << "  target=\"" << targets[r.string_id] << "\"" << std::endl;
+void print_results(const std::vector<std::string> &targets, const std::string &query,
+                   const std::vector<dt_patricia::AlignmentResult> &results) {
+    std::cout << "  query = \"" << query << "\"  (" << results.size() << " hit)" << std::endl;
+    for (const auto &r : results) {
+        std::cout << "    score=" << std::setw(2) << r.score << "  id=" << std::setw(2)
+                  << r.string_id << "  target=\"" << targets[r.string_id] << "\"" << std::endl;
     }
 }
 
@@ -53,8 +50,7 @@ int main() {
     // ============================================================
     {
         print_header("DNA / UnitCost / ed_to_all");
-        std::vector<std::string> targets = {
-            "ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
+        std::vector<std::string> targets = {"ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
         PatriciaTree<DnaAlphabet> tree(targets);
         DTPatricia<DnaAlphabet, UnitCost> aligner(tree);  // 2nd arg (cost) is optional
 
@@ -70,11 +66,9 @@ int main() {
     // ============================================================
     {
         print_header("DNA / LinearGapCost(mismatch=1, gap=3) / ed_to_all");
-        std::vector<std::string> targets = {
-            "ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
+        std::vector<std::string> targets = {"ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
         PatriciaTree<DnaAlphabet> tree(targets);
-        DTPatricia<DnaAlphabet, LinearGapCost> aligner(tree,
-                                                       LinearGapCost(1, 3));
+        DTPatricia<DnaAlphabet, LinearGapCost> aligner(tree, LinearGapCost(1, 3));
 
         const std::string query = "ACGT";
         print_results(targets, query, aligner.ed_to_all(query));
@@ -90,11 +84,9 @@ int main() {
     // ============================================================
     {
         print_header("DNA / AffineGapCost(m=1, open=2, extend=1) / ed_within_k");
-        std::vector<std::string> targets = {
-            "ACGT", "ACGTACGT", "AC", "ACGTT", "TTTT"};
+        std::vector<std::string> targets = {"ACGT", "ACGTACGT", "AC", "ACGTT", "TTTT"};
         PatriciaTree<DnaAlphabet> tree(targets);
-        DTPatricia<DnaAlphabet, AffineGapCost> aligner(
-            tree, AffineGapCost(1, 2, 1));
+        DTPatricia<DnaAlphabet, AffineGapCost> aligner(tree, AffineGapCost(1, 2, 1));
 
         const std::string query = "ACGT";
         const int max_distance = 5;  // return only entries within this edit distance
@@ -110,8 +102,7 @@ int main() {
     // ============================================================
     {
         print_header("R/Y / UnitCost / ed_to_all  (A,G->R / C,T->Y)");
-        std::vector<std::string> targets = {
-            "ACGT", "AGGT", "GCAT", "ACGTACGT"};
+        std::vector<std::string> targets = {"ACGT", "AGGT", "GCAT", "ACGTACGT"};
         PatriciaTree<RyAlphabet> tree(targets);
         DTPatricia<RyAlphabet, UnitCost> aligner(tree);
 
@@ -128,8 +119,7 @@ int main() {
     // ============================================================
     {
         print_header("Protein / UnitCost / ed_kth_smallest");
-        std::vector<std::string> targets = {
-            "MKVLAA", "MKVLAG", "MKILAA", "ACDEFG", "MKVL"};
+        std::vector<std::string> targets = {"MKVLAA", "MKVLAG", "MKILAA", "ACDEFG", "MKVL"};
         PatriciaTree<ProteinAlphabet> tree(targets);
         DTPatricia<ProteinAlphabet, UnitCost> aligner(tree);
 
@@ -153,8 +143,7 @@ int main() {
     // ============================================================
     {
         print_header("DNA / UnitCost / search_kernel : timeout");
-        std::vector<std::string> targets = {
-            "ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
+        std::vector<std::string> targets = {"ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG"};
         PatriciaTree<DnaAlphabet> tree(targets);
         DTPatricia<DnaAlphabet, UnitCost> aligner(tree);
 
@@ -166,9 +155,7 @@ int main() {
         // practice everything is found before the deadline and the search
         // ends naturally; the goal here is just to show the mechanism.
         auto results = aligner.search_kernel(
-            query,
-            [deadline](int /*current_score*/,
-                       const std::vector<AlignmentResult>& /*r*/) {
+            query, [deadline](int /*current_score*/, const std::vector<AlignmentResult> & /*r*/) {
                 return std::chrono::steady_clock::now() >= deadline;
             });
         print_results(targets, query, results);
@@ -193,10 +180,9 @@ int main() {
     //    strictly to k would make the choice among ties arbitrary.
     // ============================================================
     {
-        print_header(
-            "DNA / UnitCost / search_kernel : top-k with threshold");
-        std::vector<std::string> targets = {
-            "ACGT", "ACGA", "AAGT", "ACG", "TGCA", "GGGG", "ACGG", "ACGC"};
+        print_header("DNA / UnitCost / search_kernel : top-k with threshold");
+        std::vector<std::string> targets = {"ACGT", "ACGA", "AAGT", "ACG",
+                                            "TGCA", "GGGG", "ACGG", "ACGC"};
         PatriciaTree<DnaAlphabet> tree(targets);
         DTPatricia<DnaAlphabet, UnitCost> aligner(tree);
 
@@ -206,8 +192,7 @@ int main() {
 
         auto results = aligner.search_kernel(
             query,
-            [k, max_dist](int current_score,
-                          const std::vector<AlignmentResult>& r) {
+            [k, max_dist](int current_score, const std::vector<AlignmentResult> &r) {
                 return r.size() >= k || current_score >= max_dist;
             },
             max_dist);  // upper_bound = max_dist for pruning
