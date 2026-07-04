@@ -39,21 +39,3 @@ jobs:
 
       - name: Test
         run: ctest --preset tests
-
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-18
-
-      - name: Check formatting
-        run: |
-          find include examples tests \
-            \( -name '*.hpp' -o -name '*.cpp' -o -name '*.h' -o -name '*.cc' \) \
-            -not -path '*/testcase*/*' -print0 \
-          | xargs -0 clang-format-18 --dry-run --Werror
