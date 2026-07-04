@@ -17,16 +17,19 @@ set(_dtp_warn -Wall -Wextra -Wshadow -Wold-style-cast -Wnull-dereference -Wdoubl
 
 # 通常版（assert 有効）
 add_executable(brute_test test.cpp)
+target_link_libraries(brute_test PRIVATE dt_patricia::dt_patricia)
 target_compile_options(brute_test PRIVATE -O3 -UNDEBUG ${_dtp_warn} ${_dtp_sanitize})
 target_link_options(brute_test    PRIVATE ${_dtp_sanitize})
 
 # NDEBUG 版（assert 無効）
 add_executable(brute_test_ndebug test.cpp)
+target_link_libraries(brute_test_ndebug PRIVATE dt_patricia::dt_patricia)
 target_compile_options(brute_test_ndebug PRIVATE -O2 -DNDEBUG ${_dtp_warn} ${_dtp_sanitize})
 target_link_options(brute_test_ndebug    PRIVATE ${_dtp_sanitize})
 
 # empty test
 add_executable(empty_test test_empty.cpp)
+target_link_libraries(empty_test PRIVATE dt_patricia::dt_patricia)
 target_compile_options(empty_test PRIVATE -O2 -DNDEBUG ${_dtp_warn} ${_dtp_sanitize})
 target_link_options(empty_test    PRIVATE ${_dtp_sanitize})
 
