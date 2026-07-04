@@ -1,4 +1,4 @@
-[![tests](https://github.com/kurrrru/DT-Patricia/actions/workflows/ci.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/ci.yml)
+[![tests](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml)
 [![format](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml)
 
 ドキュメント整備時に書き直すので、今はメモだけ
