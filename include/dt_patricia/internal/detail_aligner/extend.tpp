@@ -7,10 +7,8 @@ namespace dt_patricia {
 // =========================================================
 template <AlphabetPolicy Alphabet, typename CostType>
 void DTPatricia<Alphabet, CostType>::extend(
-    const std::string_view query,
-    internal::WavefrontArray &wf_array,
-    internal::WavefrontArray &next_wf_array,
-    internal::WavefrontArray &child_wf_array,
+    const std::string_view query, internal::WavefrontArray &wf_array,
+    internal::WavefrontArray &next_wf_array, internal::WavefrontArray &child_wf_array,
     std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &buffer,
     const std::vector<uint32_t> &active_counts) const {
     next_wf_array.clear_logical_size();
@@ -29,7 +27,8 @@ void DTPatricia<Alphabet, CostType>::extend(
     int32_t cached_label_len = 0;
     uint32_t cached_label_node_id = UINT32_MAX;
 
-    while (wf_array_idx < wf_array.active_size() || child_idx < child_wf_array.active_size() || buffer_used) {
+    while (wf_array_idx < wf_array.active_size() || child_idx < child_wf_array.active_size() ||
+           buffer_used) {
         bool wf_array_idx_increment = false;
         bool child_idx_increment = false;
 
@@ -38,10 +37,9 @@ void DTPatricia<Alphabet, CostType>::extend(
         int32_t current_offset;
         if (child_idx >= child_wf_array.active_size() && wf_array_idx >= wf_array.active_size()) {
             // bufferのみ残っている場合
-            for (const auto& buf : buffer) {
+            for (const auto &buf : buffer) {
                 for (size_t i = 0; i < buf.active_size(); ++i) {
-                    child_wf_array.push_back_state(buf.get_vk(i),
-                                        buf.get_offset(i));
+                    child_wf_array.push_back_state(buf.get_vk(i), buf.get_offset(i));
                 }
             }
             for (auto &buf : buffer) {
@@ -74,7 +72,8 @@ void DTPatricia<Alphabet, CostType>::extend(
             } else {
                 // vk が同じ → offset が大きい方を採用
                 current_vk = wf_vk;
-                current_offset = std::max(wf_array.get_offset(wf_array_idx), child_wf_array.get_offset(child_idx));
+                current_offset = std::max(wf_array.get_offset(wf_array_idx),
+                                          child_wf_array.get_offset(child_idx));
                 wf_array_idx_increment = true;
                 child_idx_increment = true;
             }
@@ -85,10 +84,9 @@ void DTPatricia<Alphabet, CostType>::extend(
         if (node_id != last_node_id && buffer_used) {
             // bufferはソート済み
             // (BFS順により child_wf_arrayの末尾 < bufferの最小値 が保証される)
-            for (const auto& buf : buffer) {
+            for (const auto &buf : buffer) {
                 for (size_t i = 0; i < buf.active_size(); ++i) {
-                    child_wf_array.push_back_state(buf.get_vk(i),
-                                        buf.get_offset(i));
+                    child_wf_array.push_back_state(buf.get_vk(i), buf.get_offset(i));
                 }
             }
             for (auto &buf : buffer) {
@@ -130,12 +128,13 @@ void DTPatricia<Alphabet, CostType>::extend(
             cached_label_len = static_cast<int32_t>(cached_label.length());
             cached_label_node_id = node_id;
         }
-        const std::string_view& label = cached_label;
+        const std::string_view &label = cached_label;
         const int32_t label_len = cached_label_len;
 
         const int32_t max_lcp_len = std::min(query_length - (i + 1), label_len - (j + 1));
         // exact match extension
-        int32_t lcp_len = static_cast<int32_t>(internal::fast_lcp(query.data() + i + 1, label.data() + j + 1, max_lcp_len));
+        int32_t lcp_len = static_cast<int32_t>(
+            internal::fast_lcp(query.data() + i + 1, label.data() + j + 1, max_lcp_len));
         i += lcp_len;
         j += lcp_len;
 

@@ -6,18 +6,19 @@ namespace dt_patricia {
 // Algorithm 3: DT-Patricia Expand - Edit operations (I/D/S)
 // ==============================================================================
 template <AlphabetPolicy Alphabet, typename CostType>
-void DTPatricia<Alphabet, CostType>::expand(
-    const std::string_view query,
-    std::vector<internal::WavefrontArray> &wf_history,
-    internal::WavefrontArray &next_wf_array,
-    int32_t curr_idx,
-    size_t history_size,
-    const std::vector<uint32_t> &active_counts,
-    std::vector<int32_t> &expand_scratch) const requires (CostType::is_linear) {
+void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
+                                            std::vector<internal::WavefrontArray> &wf_history,
+                                            internal::WavefrontArray &next_wf_array,
+                                            int32_t curr_idx, size_t history_size,
+                                            const std::vector<uint32_t> &active_counts,
+                                            std::vector<int32_t> &expand_scratch) const
+    requires(CostType::is_linear)
+{
     next_wf_array.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
 
-    // Sentinel: NULL_OFF < any valid offset; NULL_OFF + 1 is still < 0, so max() naturally rejects it
+    // Sentinel: NULL_OFF < any valid offset; NULL_OFF + 1 is still < 0, so max() naturally rejects
+    // it
     static constexpr int32_t NULL_OFF = -1'000'000'000;
 
     if constexpr (CostType::is_unit) {
@@ -25,12 +26,14 @@ void DTPatricia<Alphabet, CostType>::expand(
         next_wf_array.reserve_capacity(wf_array.active_size() * 3 + 10);
 
         for (size_t idx = 0; idx < wf_array.active_size();) {
-            const uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx));
+            const uint32_t node_id =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx));
 
             if (active_counts[node_id] == 0) {
                 ++idx;
                 while (idx < wf_array.active_size() &&
-                       internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx)) == node_id)
+                       internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx)) ==
+                           node_id)
                     ++idx;
                 continue;
             }
@@ -38,12 +41,16 @@ void DTPatricia<Alphabet, CostType>::expand(
             const size_t start_idx = idx;
             size_t end_idx = idx + 1;
             while (end_idx < wf_array.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(end_idx)) == node_id)
+                   internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(end_idx)) ==
+                       node_id)
                 ++end_idx;
 
-            const int32_t label_len = static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
-            const int32_t k_lo = internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(start_idx));
-            const int32_t k_hi = internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(end_idx - 1));
+            const int32_t label_len =
+                static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
+            const int32_t k_lo =
+                internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(start_idx));
+            const int32_t k_hi =
+                internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(end_idx - 1));
 
             // scratch indexed by (k - k_base), k_base = k_lo - 2
             // [0]          = k_lo-2  sentinel (always NULL)
@@ -62,7 +69,7 @@ void DTPatricia<Alphabet, CostType>::expand(
             for (size_t i = start_idx; i < end_idx; ++i) {
                 int32_t k = internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(i));
                 int32_t j = wf_array.get_offset(i);
-                int32_t& slot = expand_scratch[k - k_base];
+                int32_t &slot = expand_scratch[k - k_base];
                 if (j > slot) slot = j;  // take max on duplicate k (shouldn't happen but safe)
             }
 
@@ -71,21 +78,23 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t s = k - k_base;  // s in [1, k_hi-k_lo+3]
 
                 const int32_t src_d = expand_scratch[s + 1];
-                const int32_t del_j = (src_d > NULL_OFF && src_d + 1 < label_len)
-                                      ? src_d + 1 : INT32_MIN;
+                const int32_t del_j =
+                    (src_d > NULL_OFF && src_d + 1 < label_len) ? src_d + 1 : INT32_MIN;
 
                 const int32_t src_s = expand_scratch[s];
-                const int32_t sub_j = (src_s > NULL_OFF && src_s + 1 < label_len
-                                       && k + src_s + 1 < query_length)
-                                      ? src_s + 1 : INT32_MIN;
+                const int32_t sub_j =
+                    (src_s > NULL_OFF && src_s + 1 < label_len && k + src_s + 1 < query_length)
+                        ? src_s + 1
+                        : INT32_MIN;
 
                 const int32_t src_i = expand_scratch[s - 1];
-                const int32_t ins_j = (src_i > NULL_OFF && k - 1 + src_i + 1 < query_length)
-                                      ? src_i : INT32_MIN;
+                const int32_t ins_j =
+                    (src_i > NULL_OFF && k - 1 + src_i + 1 < query_length) ? src_i : INT32_MIN;
 
                 const int32_t max_j = std::max(del_j, std::max(sub_j, ins_j));
                 if (max_j >= -1)
-                    next_wf_array.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, k), max_j);
+                    next_wf_array.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, k),
+                                                      max_j);
             }
 
             idx = end_idx;
@@ -104,33 +113,38 @@ void DTPatricia<Alphabet, CostType>::expand(
         internal::WavefrontArray &wf_array_i = wf_history[wf_history_idx_i];
 
         next_wf_array.reserve_capacity(
-            (wf_array_d.active_size() + wf_array_s.active_size() + wf_array_i.active_size()) * 3 + 10);
+            (wf_array_d.active_size() + wf_array_s.active_size() + wf_array_i.active_size()) * 3 +
+            10);
 
         size_t start_idx_d = 0, start_idx_s = 0, start_idx_i = 0;
 
-        while (start_idx_d < wf_array_d.active_size() ||
-               start_idx_s < wf_array_s.active_size() ||
+        while (start_idx_d < wf_array_d.active_size() || start_idx_s < wf_array_s.active_size() ||
                start_idx_i < wf_array_i.active_size()) {
-
             uint32_t node_id = UINT32_MAX;
             if (start_idx_d < wf_array_d.active_size())
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(start_idx_d)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
+                                                wf_array_d.get_vk(start_idx_d)));
             if (start_idx_s < wf_array_s.active_size())
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(wf_array_s.get_vk(start_idx_s)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
+                                                wf_array_s.get_vk(start_idx_s)));
             if (start_idx_i < wf_array_i.active_size())
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(start_idx_i)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
+                                                wf_array_i.get_vk(start_idx_i)));
 
             size_t end_idx_d = start_idx_d;
             while (end_idx_d < wf_array_d.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) == node_id)
+                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) ==
+                       node_id)
                 ++end_idx_d;
             size_t end_idx_s = start_idx_s;
             while (end_idx_s < wf_array_s.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_s.get_vk(end_idx_s)) == node_id)
+                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_s.get_vk(end_idx_s)) ==
+                       node_id)
                 ++end_idx_s;
             size_t end_idx_i = start_idx_i;
             while (end_idx_i < wf_array_i.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) == node_id)
+                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) ==
+                       node_id)
                 ++end_idx_i;
 
             if (active_counts[node_id] == 0) {
@@ -140,19 +154,29 @@ void DTPatricia<Alphabet, CostType>::expand(
                 continue;
             }
 
-            const int32_t label_len = static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
+            const int32_t label_len =
+                static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
 
             size_t idx_d = start_idx_d;
             size_t idx_s = start_idx_s;
             size_t idx_i = start_idx_i;
 
-            int32_t k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d)) : 0;
-            int32_t k_s_raw = (idx_s < end_idx_s) ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s)) : 0;
-            int32_t k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i)) : 0;
+            int32_t k_d_raw =
+                (idx_d < end_idx_d)
+                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                    : 0;
+            int32_t k_s_raw =
+                (idx_s < end_idx_s)
+                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s))
+                    : 0;
+            int32_t k_i_raw =
+                (idx_i < end_idx_i)
+                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                    : 0;
 
             while (idx_d < end_idx_d || idx_s < end_idx_s || idx_i < end_idx_i) {
                 const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw - 1 : INT32_MAX;
-                const int32_t k_s_target = (idx_s < end_idx_s) ? k_s_raw     : INT32_MAX;
+                const int32_t k_s_target = (idx_s < end_idx_s) ? k_s_raw : INT32_MAX;
                 const int32_t k_i_target = (idx_i < end_idx_i) ? k_i_raw + 1 : INT32_MAX;
 
                 const int32_t min_k = std::min(k_d_target, std::min(k_s_target, k_i_target));
@@ -162,7 +186,10 @@ void DTPatricia<Alphabet, CostType>::expand(
                     const int32_t st_offset = wf_array_d.get_offset(idx_d);
                     if (st_offset + 1 < label_len) max_j = st_offset + 1;
                     ++idx_d;
-                    k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d)) : 0;
+                    k_d_raw =
+                        (idx_d < end_idx_d)
+                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                            : 0;
                 }
 
                 if (k_s_target == min_k) {
@@ -173,7 +200,10 @@ void DTPatricia<Alphabet, CostType>::expand(
                         if (new_j > max_j) max_j = new_j;
                     }
                     ++idx_s;
-                    k_s_raw = (idx_s < end_idx_s) ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s)) : 0;
+                    k_s_raw =
+                        (idx_s < end_idx_s)
+                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s))
+                            : 0;
                 }
 
                 if (k_i_target == min_k) {
@@ -181,11 +211,15 @@ void DTPatricia<Alphabet, CostType>::expand(
                     const int32_t i_pos = k_i_raw + st_offset;
                     if (i_pos + 1 < query_length && st_offset > max_j) max_j = st_offset;
                     ++idx_i;
-                    k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i)) : 0;
+                    k_i_raw =
+                        (idx_i < end_idx_i)
+                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                            : 0;
                 }
 
                 if (max_j >= -1)
-                    next_wf_array.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                    next_wf_array.push_back_unchecked(
+                        internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
             }
 
             start_idx_d = end_idx_d;
@@ -201,20 +235,16 @@ void DTPatricia<Alphabet, CostType>::expand(
 // ==============================================================================
 template <AlphabetPolicy Alphabet, typename CostType>
 void DTPatricia<Alphabet, CostType>::expand(
-    const std::string_view query,
-    std::vector<internal::WavefrontArray> &wf_history_d,
+    const std::string_view query, std::vector<internal::WavefrontArray> &wf_history_d,
     std::vector<internal::WavefrontArray> &wf_history_m,
-    std::vector<internal::WavefrontArray> &wf_history_i,
-    internal::WavefrontArray &next_wf_array_d,
-    internal::WavefrontArray &next_wf_array_m,
-    internal::WavefrontArray &next_wf_array_i,
-    int32_t curr_idx,
-    size_t history_size,
-    const std::vector<uint32_t> &active_counts,
+    std::vector<internal::WavefrontArray> &wf_history_i, internal::WavefrontArray &next_wf_array_d,
+    internal::WavefrontArray &next_wf_array_m, internal::WavefrontArray &next_wf_array_i,
+    int32_t curr_idx, size_t history_size, const std::vector<uint32_t> &active_counts,
     std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
-    internal::WavefrontArray &pending_d,
-    internal::WavefrontArray &merged_wf_array_d,
-    std::vector<int32_t> &expand_scratch) const requires (!CostType::is_linear) {
+    internal::WavefrontArray &pending_d, internal::WavefrontArray &merged_wf_array_d,
+    std::vector<int32_t> &expand_scratch) const
+    requires(!CostType::is_linear)
+{
     (void)expand_scratch;
     next_wf_array_d.clear_logical_size();
     next_wf_array_m.clear_logical_size();
@@ -224,7 +254,8 @@ void DTPatricia<Alphabet, CostType>::expand(
     const uint32_t next_idx = internal::add_mod(curr_idx, 1, history_size);
     // current_score + 1 に対応する internal::WavefrontArray を構築する
     size_t wf_history_idx_d = internal::sub_mod(next_idx, _cost.gap_extend, history_size);
-    size_t wf_history_idx_m = internal::sub_mod(next_idx, _cost.gap_open + _cost.gap_extend, history_size);
+    size_t wf_history_idx_m =
+        internal::sub_mod(next_idx, _cost.gap_open + _cost.gap_extend, history_size);
     size_t wf_history_idx_i = internal::sub_mod(next_idx, _cost.gap_extend, history_size);
 
     internal::WavefrontArray &wf_array_d = wf_history_d[wf_history_idx_d];
@@ -232,10 +263,10 @@ void DTPatricia<Alphabet, CostType>::expand(
     internal::WavefrontArray &wf_array_i = wf_history_i[wf_history_idx_i];
 
     // Pre-reserve capacity for deletion and insertion outputs
-    next_wf_array_d.reserve_capacity(
-        (wf_array_d.active_size() + wf_array_m.active_size()) * 3 + 10);
-    next_wf_array_i.reserve_capacity(
-        (wf_array_m.active_size() + wf_array_i.active_size()) * 3 + 10);
+    next_wf_array_d.reserve_capacity((wf_array_d.active_size() + wf_array_m.active_size()) * 3 +
+                                     10);
+    next_wf_array_i.reserve_capacity((wf_array_m.active_size() + wf_array_i.active_size()) * 3 +
+                                     10);
 
     size_t start_idx_d = 0;
     size_t start_idx_m = 0;
@@ -243,36 +274,43 @@ void DTPatricia<Alphabet, CostType>::expand(
 
     bool has_pending_d = false;
 
-    while (start_idx_d < wf_array_d.active_size() || start_idx_m < wf_array_m.active_size() || start_idx_i < wf_array_i.active_size()) {
+    while (start_idx_d < wf_array_d.active_size() || start_idx_m < wf_array_m.active_size() ||
+           start_idx_i < wf_array_i.active_size()) {
         // 次のnode_idを決定
         uint32_t node_id = UINT32_MAX;
         if (start_idx_d < wf_array_d.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(start_idx_d));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(start_idx_d));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_m < wf_array_m.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(start_idx_m));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(start_idx_m));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_i < wf_array_i.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(start_idx_i));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(start_idx_i));
             node_id = std::min(node_id, nid);
         }
 
         // node_idが等しい区間を見つける
         size_t end_idx_d = start_idx_d;
         while (end_idx_d < wf_array_d.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) ==
+                   node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
         while (end_idx_m < wf_array_m.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(end_idx_m)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(end_idx_m)) ==
+                   node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
         while (end_idx_i < wf_array_i.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) ==
+                   node_id) {
             ++end_idx_i;
         }
 
@@ -290,8 +328,12 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t idx_m = start_idx_m;
 
         // Cache k values for D-stream merge
-        int32_t k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d)) : 0;
-        int32_t k_m_d_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m)) : 0;
+        int32_t k_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                              : 0;
+        int32_t k_m_d_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                                : 0;
 
         while (idx_d < end_idx_d || idx_m < end_idx_m) {
             const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw - 1 : INT32_MAX;
@@ -323,7 +365,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                     }
                 }
                 ++idx_d;
-                k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d)) : 0;
+                k_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                              : 0;
             }
 
             // --- Deletion (M -> D) ---
@@ -334,12 +378,15 @@ void DTPatricia<Alphabet, CostType>::expand(
                     if (new_j > max_j) max_j = new_j;
                 }
                 ++idx_m;
-                k_m_d_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m)) : 0;
+                k_m_d_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                                : 0;
             }
 
             // 3. 結果の登録
             if (max_j >= -1) {
-                next_wf_array_d.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                next_wf_array_d.push_back_unchecked(
+                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
             }
         }
 
@@ -347,8 +394,12 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t idx_i = start_idx_i;
 
         // Cache k values for I-stream merge
-        int32_t k_m_i_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m)) : 0;
-        int32_t k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i)) : 0;
+        int32_t k_m_i_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                                : 0;
+        int32_t k_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                              : 0;
 
         while (idx_m < end_idx_m || idx_i < end_idx_i) {
             const int32_t k_m_target = (idx_m < end_idx_m) ? k_m_i_raw + 1 : INT32_MAX;
@@ -366,7 +417,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                     max_j = new_j;
                 }
                 ++idx_m;
-                k_m_i_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m)) : 0;
+                k_m_i_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                                : 0;
             }
 
             // --- Insertion (I -> I) ---
@@ -378,22 +431,23 @@ void DTPatricia<Alphabet, CostType>::expand(
                     if (new_j > max_j) max_j = new_j;
                 }
                 ++idx_i;
-                k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i)) : 0;
+                k_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                              : 0;
             }
 
             // 3. 結果の登録
             if (max_j >= -1) {
-                next_wf_array_i.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                next_wf_array_i.push_back_unchecked(
+                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
             }
         }
 
         if (has_pending_d) {
             for (int i = 0; i < tree_type::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
-                    pending_d.push_back_state(
-                        pending_d_buffer[i].get_vk(j),
-                        pending_d_buffer[i].get_offset(j)
-                    );
+                    pending_d.push_back_state(pending_d_buffer[i].get_vk(j),
+                                              pending_d_buffer[i].get_offset(j));
                 }
                 pending_d_buffer[i].clear_logical_size();
             }
@@ -437,7 +491,8 @@ void DTPatricia<Alphabet, CostType>::expand(
                     ++idx2;
                 } else {
                     // vk が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用
-                    const int32_t winner_offset = (st1_offset >= st2_offset) ? st1_offset : st2_offset;
+                    const int32_t winner_offset =
+                        (st1_offset >= st2_offset) ? st1_offset : st2_offset;
                     merged_wf_array_d.push_back_state(st1_vk, winner_offset);
                     ++idx1;
                     ++idx2;
@@ -449,7 +504,6 @@ void DTPatricia<Alphabet, CostType>::expand(
         merged_wf_array_d.clear_logical_size();
         pending_d.clear_logical_size();
     }
-
 
     wf_history_d[next_idx].swap(next_wf_array_d);
     wf_history_i[next_idx].swap(next_wf_array_i);
@@ -465,41 +519,49 @@ void DTPatricia<Alphabet, CostType>::expand(
 
     // Pre-reserve capacity for the M-update pass
     next_wf_array_m.reserve_capacity(
-        (wf_array_dm.active_size() + wf_array_mm.active_size() + wf_array_im.active_size()) * 3 + 10);
+        (wf_array_dm.active_size() + wf_array_mm.active_size() + wf_array_im.active_size()) * 3 +
+        10);
 
     start_idx_d = 0;
     start_idx_m = 0;
     start_idx_i = 0;
 
-    while (start_idx_d < wf_array_dm.active_size() || start_idx_m < wf_array_mm.active_size() || start_idx_i < wf_array_im.active_size()) {
+    while (start_idx_d < wf_array_dm.active_size() || start_idx_m < wf_array_mm.active_size() ||
+           start_idx_i < wf_array_im.active_size()) {
         // 次のnode_idを決定
         uint32_t node_id = UINT32_MAX;
         if (start_idx_d < wf_array_dm.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(start_idx_d));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(start_idx_d));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_m < wf_array_mm.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(start_idx_m));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(start_idx_m));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_i < wf_array_im.active_size()) {
-            uint32_t nid = internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(start_idx_i));
+            uint32_t nid =
+                internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(start_idx_i));
             node_id = std::min(node_id, nid);
         }
 
         size_t end_idx_d = start_idx_d;
         while (end_idx_d < wf_array_dm.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(end_idx_d)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(end_idx_d)) ==
+                   node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
         while (end_idx_m < wf_array_mm.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(end_idx_m)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(end_idx_m)) ==
+                   node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
         while (end_idx_i < wf_array_im.active_size() &&
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(end_idx_i)) == node_id) {
+               internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(end_idx_i)) ==
+                   node_id) {
             ++end_idx_i;
         }
 
@@ -517,9 +579,15 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t idx_i = start_idx_i;
 
         // Cache k values for M-update pass
-        int32_t k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d)) : 0;
-        int32_t k_m_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m)) : 0;
-        int32_t k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i)) : 0;
+        int32_t k_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d))
+                              : 0;
+        int32_t k_m_raw = (idx_m < end_idx_m)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m))
+                              : 0;
+        int32_t k_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i))
+                              : 0;
 
         while (idx_d < end_idx_d || idx_m < end_idx_m || idx_i < end_idx_i) {
             const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw : INT32_MAX;
@@ -534,7 +602,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t new_j = st_offset;
                 max_j = new_j;
                 ++idx_d;
-                k_d_raw = (idx_d < end_idx_d) ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d)) : 0;
+                k_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d))
+                              : 0;
             }
 
             if (k_m_target == min_k) {
@@ -545,7 +615,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                     if (new_j > max_j) max_j = new_j;
                 }
                 ++idx_m;
-                k_m_raw = (idx_m < end_idx_m) ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m)) : 0;
+                k_m_raw = (idx_m < end_idx_m)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m))
+                              : 0;
             }
 
             if (k_i_target == min_k) {
@@ -553,11 +625,14 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t new_j = st_offset;
                 if (new_j > max_j) max_j = new_j;
                 ++idx_i;
-                k_i_raw = (idx_i < end_idx_i) ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i)) : 0;
+                k_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i))
+                              : 0;
             }
 
             if (max_j >= -1) {
-                next_wf_array_m.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                next_wf_array_m.push_back_unchecked(
+                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
             }
         }
         start_idx_d = end_idx_d;

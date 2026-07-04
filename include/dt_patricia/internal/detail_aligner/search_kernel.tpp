@@ -8,16 +8,14 @@ namespace dt_patricia {
 template <AlphabetPolicy Alphabet, typename CostType>
 template <typename StopPredicate>
 std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
-    const std::string &query,
-    StopPredicate stop_predicate,
-    int upper_bound)
-    const requires (CostType::is_linear) {
-
+    const std::string &query, StopPredicate stop_predicate, int upper_bound) const
+    requires(CostType::is_linear)
+{
     std::vector<AlignmentResult> results;
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();
-    const std::vector<uint32_t>& subtree_max_lengths = _patricia_tree.get_subtree_max_lengths();
-    const std::vector<uint32_t>& subtree_min_lengths = _patricia_tree.get_subtree_min_lengths();
+    const std::vector<uint32_t> &subtree_max_lengths = _patricia_tree.get_subtree_max_lengths();
+    const std::vector<uint32_t> &subtree_min_lengths = _patricia_tree.get_subtree_min_lengths();
 
     if (_patricia_tree.empty()) {
         return results;
@@ -75,13 +73,8 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts);
 
         if (upper_bound >= 0) {
-            prune_by_upper_bound(
-                curr_wf,
-                subtree_max_lengths,
-                subtree_min_lengths,
-                query_length,
-                upper_bound - current_score
-            );
+            prune_by_upper_bound(curr_wf, subtree_max_lengths, subtree_min_lengths, query_length,
+                                 upper_bound - current_score);
         }
 
         // 終端チェック: クエリ全体が処理されたノードを探す
@@ -127,17 +120,13 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 3: DT-Patricia Expand
-        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts, expand_scratch);
+        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts,
+               expand_scratch);
 
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
-            prune_by_upper_bound(
-                wf_history[next_idx],
-                subtree_max_lengths,
-                subtree_min_lengths,
-                query_length,
-                upper_bound - (current_score + 1)
-            );
+            prune_by_upper_bound(wf_history[next_idx], subtree_max_lengths, subtree_min_lengths,
+                                 query_length, upper_bound - (current_score + 1));
         }
 
         ++current_score;
@@ -153,10 +142,9 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 template <AlphabetPolicy Alphabet, typename CostType>
 template <typename StopPredicate>
 std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
-    const std::string &query,
-    StopPredicate stop_predicate,
-    int upper_bound)
-    const requires (!CostType::is_linear) {
+    const std::string &query, StopPredicate stop_predicate, int upper_bound) const
+    requires(!CostType::is_linear)
+{
     std::vector<AlignmentResult> results;
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();
@@ -176,7 +164,8 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 
     std::vector<uint8_t> found_string_ids(_patricia_tree.string_count(), 0);
 
-    uint32_t history_size = std::max({ _cost.mismatch, _cost.gap_open + _cost.gap_extend, _cost.gap_extend }) + 1;
+    uint32_t history_size =
+        std::max({_cost.mismatch, _cost.gap_open + _cost.gap_extend, _cost.gap_extend}) + 1;
 
     std::vector<internal::WavefrontArray> wf_history_d(history_size);
     std::vector<internal::WavefrontArray> wf_history_m(history_size);
@@ -233,15 +222,10 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         // Algorithm 2: DT-Patricia Extend
         extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts);
         if (upper_bound >= 0) {
-            prune_by_upper_bound<true>(
-                next_wf_array_d,
-                curr_wf_m,
-                next_wf_array_i,
-                _patricia_tree.get_subtree_max_lengths(),
-                _patricia_tree.get_subtree_min_lengths(),
-                query_length,
-                upper_bound - current_score
-            );
+            prune_by_upper_bound<true>(next_wf_array_d, curr_wf_m, next_wf_array_i,
+                                       _patricia_tree.get_subtree_max_lengths(),
+                                       _patricia_tree.get_subtree_min_lengths(), query_length,
+                                       upper_bound - current_score);
         }
 
         // 終端チェック: クエリ全体が処理されたノードを探す
@@ -287,20 +271,15 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 3: DT-Patricia Expand
-        expand(padded_query, wf_history_d, wf_history_m, wf_history_i,
-            next_wf_array_d, next_wf_array_m, next_wf_array_i,
-            curr_idx, history_size, active_counts, buffer, pending_d, merged_wf_array_d, expand_scratch);
+        expand(padded_query, wf_history_d, wf_history_m, wf_history_i, next_wf_array_d,
+               next_wf_array_m, next_wf_array_i, curr_idx, history_size, active_counts, buffer,
+               pending_d, merged_wf_array_d, expand_scratch);
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
-                wf_history_d[next_idx],
-                wf_history_m[next_idx],
-                wf_history_i[next_idx],
-                _patricia_tree.get_subtree_max_lengths(),
-                _patricia_tree.get_subtree_min_lengths(),
-                query_length,
-                upper_bound - (current_score + 1)
-            );
+                wf_history_d[next_idx], wf_history_m[next_idx], wf_history_i[next_idx],
+                _patricia_tree.get_subtree_max_lengths(), _patricia_tree.get_subtree_min_lengths(),
+                query_length, upper_bound - (current_score + 1));
         }
 
         ++current_score;
