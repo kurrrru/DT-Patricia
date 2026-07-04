@@ -1,12 +1,13 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <cstdint>
-#include <cstddef>
 #include <algorithm>
-#include <numeric>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <numeric>
+#include <utility>
+#include <vector>
 
 namespace dt_patricia::internal {
 
@@ -23,10 +24,10 @@ class WavefrontArray {
     // =========================================================
     WavefrontArray() = default;
     ~WavefrontArray() = default;
-    WavefrontArray(const WavefrontArray&) = delete;
-    WavefrontArray& operator=(const WavefrontArray&) = delete;
-    WavefrontArray(WavefrontArray&&) noexcept = default;
-    WavefrontArray& operator=(WavefrontArray&&) noexcept = default;
+    WavefrontArray(const WavefrontArray &) = delete;
+    WavefrontArray &operator=(const WavefrontArray &) = delete;
+    WavefrontArray(WavefrontArray &&) noexcept = default;
+    WavefrontArray &operator=(WavefrontArray &&) noexcept = default;
 
     // =========================================================
     // 1. Memory Management & Lifecycle
@@ -42,9 +43,7 @@ class WavefrontArray {
     }
 
     // Resets the logical size to 0 while preserving the allocated physical memory capacity.
-    void clear_logical_size() {
-        _active_size = 0;
-    }
+    void clear_logical_size() { _active_size = 0; }
 
     void set_size(size_t new_size) {
         _active_size = new_size;
@@ -77,11 +76,11 @@ class WavefrontArray {
     }
 
     void push_back_state(uint64_t vk, int32_t offset) {
-        if (_active_size == _vks.size()) { [[unlikely]]
-            _vks.push_back(vk);
+        if (_active_size == _vks.size()) {
+            [[unlikely]] _vks.push_back(vk);
             _offsets.push_back(offset);
-        } else { [[likely]]
-            _vks[_active_size] = vk;
+        } else {
+            [[likely]] _vks[_active_size] = vk;
             _offsets[_active_size] = offset;
         }
         _active_size++;
@@ -96,15 +95,11 @@ class WavefrontArray {
         _active_size++;
     }
 
-    size_t active_size() const {
-        return _active_size;
-    }
+    size_t active_size() const { return _active_size; }
 
-    bool empty() const {
-        return _active_size == 0;
-    }
+    bool empty() const { return _active_size == 0; }
 
-    void swap(WavefrontArray& other) noexcept {
+    void swap(WavefrontArray &other) noexcept {
         _vks.swap(other._vks);
         _offsets.swap(other._offsets);
         std::swap(_active_size, other._active_size);
@@ -114,16 +109,15 @@ class WavefrontArray {
     // 5. Utilities (Class Methods)
     // =========================================================
 
-    static uint32_t calc_node_id_from_vk(uint64_t vk) {
-        return static_cast<uint32_t>(vk >> 32);
-    }
+    static uint32_t calc_node_id_from_vk(uint64_t vk) { return static_cast<uint32_t>(vk >> 32); }
 
     static int32_t calc_k_from_vk(uint64_t vk) {
         return static_cast<int32_t>(vk & DIAGONAL_MASK) - DIAGONAL_OFFSET;
     }
 
     static uint64_t calc_vk(uint32_t node_id, int32_t k) {
-        return (static_cast<uint64_t>(node_id) << 32) | (static_cast<uint64_t>(k + DIAGONAL_OFFSET) & DIAGONAL_MASK);
+        return (static_cast<uint64_t>(node_id) << 32) |
+               (static_cast<uint64_t>(k + DIAGONAL_OFFSET) & DIAGONAL_MASK);
     }
 
  private:

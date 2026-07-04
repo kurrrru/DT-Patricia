@@ -28,7 +28,7 @@ struct LinearGapCost {
 // cost(L) = gap_open + gap_extend * L
 struct AffineGapCost {
     static constexpr bool is_linear = false;
-    static constexpr bool is_unit = false; 
+    static constexpr bool is_unit = false;
     uint32_t mismatch;
     uint32_t gap_open;
     uint32_t gap_extend;

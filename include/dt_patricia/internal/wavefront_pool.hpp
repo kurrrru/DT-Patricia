@@ -1,50 +1,51 @@
 #pragma once
 
-#include <dt_patricia/internal/wavefront_array.hpp>
-#include <vector>
-#include <memory>
 #include <cstddef>
+#include <memory>
+#include <vector>
+
+#include <dt_patricia/internal/wavefront_array.hpp>
 
 namespace dt_patricia::internal {
 
 class WavefrontPool {
-private:
+ private:
     std::vector<std::unique_ptr<WavefrontArray>> _pool;
-    
+
     // Index of the next available element in the pool
     size_t _cursor = 0;
 
-public:
+ public:
     // =========================================================
     // 0. Rule of Five
     // =========================================================
-    
+
     explicit WavefrontPool(size_t initial_pool_size = 128) {
         _pool.reserve(initial_pool_size);
         for (size_t i = 0; i < initial_pool_size; ++i) {
             _pool.push_back(std::make_unique<WavefrontArray>());
         }
     }
-    
+
     ~WavefrontPool() = default;
-    
+
     // Prevent unintended copying of the pool itself
-    WavefrontPool(const WavefrontPool&) = delete;
-    WavefrontPool& operator=(const WavefrontPool&) = delete;
-    
+    WavefrontPool(const WavefrontPool &) = delete;
+    WavefrontPool &operator=(const WavefrontPool &) = delete;
+
     // Allow move semantics (e.g., for transferring context between threads)
-    WavefrontPool(WavefrontPool&&) noexcept = default;
-    WavefrontPool& operator=(WavefrontPool&&) noexcept = default;
+    WavefrontPool(WavefrontPool &&) noexcept = default;
+    WavefrontPool &operator=(WavefrontPool &&) noexcept = default;
 
     // =========================================================
     // 1. Core API
     // =========================================================
-    
+
     // Acquires a pointer to a WavefrontArray from the pool.
     // Specifying expected_capacity > 0 prevents internal vector reallocation upon acquisition.
-    WavefrontArray* acquire(size_t expected_capacity = 0) {
-        WavefrontArray* wf = nullptr;
-        
+    WavefrontArray *acquire(size_t expected_capacity = 0) {
+        WavefrontArray *wf = nullptr;
+
         if (_cursor < _pool.size()) {
             wf = _pool[_cursor].get();
         } else {
@@ -64,8 +65,8 @@ public:
         return wf;
     }
 
-    // Called upon completion of a query or alignment process to return all arrays to the "free" state.
-    // Internal memory (Capacity) is not freed and is reused in the next execution.
+    // Called upon completion of a query or alignment process to return all arrays to the "free"
+    // state. Internal memory (Capacity) is not freed and is reused in the next execution.
     void release_all() {
         for (size_t i = 0; i < _cursor; ++i) {
             _pool[i]->clear_logical_size();
@@ -76,17 +77,13 @@ public:
     // =========================================================
     // 2. Diagnostics API
     // =========================================================
-    
+
     // Total number of WavefrontArrays currently allocated in the pool
-    size_t capacity() const {
-        return _pool.size();
-    }
+    size_t capacity() const { return _pool.size(); }
 
     // Number of WavefrontArrays currently in use (loaned out)
-    size_t used_count() const {
-        return _cursor;
-    }
-    
+    size_t used_count() const { return _cursor; }
+
     // Physically frees all allocated memory to resolve memory pressure
     void free_memory() {
         _pool.clear();
