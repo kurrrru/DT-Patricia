@@ -61,7 +61,7 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             const int32_t k_base = k_lo - 2;
             const int32_t scratch_sz = k_hi - k_lo + 5;
 
-            if ((int32_t)expand_scratch.size() < scratch_sz)
+            if (static_cast<int32_t>(expand_scratch.size()) < scratch_sz)
                 expand_scratch.assign(scratch_sz, NULL_OFF);
             else
                 std::fill(expand_scratch.begin(), expand_scratch.begin() + scratch_sz, NULL_OFF);
