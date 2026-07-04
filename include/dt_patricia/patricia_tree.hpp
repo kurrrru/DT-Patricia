@@ -149,8 +149,8 @@ class PatriciaTree {
     // ノードIDから対応する単語IDを取得するテーブル
     // そのノードが単語終端であるかを事前に必ず確認すること
     std::vector<uint32_t> _string_ids_offset;  // index=ノードID, 値=_string_idsプール内の開始位置
-    std::vector<uint32_t> _string_ids_count;   // index=ノードID, 値=そのノードに紐づくIDの個数
-    std::vector<uint32_t> _string_ids;         // 全てのIDを隙間なく詰め込んだ巨大配列
+    std::vector<uint32_t> _string_ids_count;  // index=ノードID, 値=そのノードに紐づくIDの個数
+    std::vector<uint32_t> _string_ids;  // 全てのIDを隙間なく詰め込んだ巨大配列
 
     std::vector<uint32_t>
         _subtree_counts;  // index=ノードID, 値=そのノードを根とする部分木に含まれる単語数
