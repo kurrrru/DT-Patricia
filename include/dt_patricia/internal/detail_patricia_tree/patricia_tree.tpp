@@ -234,87 +234,131 @@ void PatriciaTree<Alphabet>::build_node_bfs(uint32_t node_id, size_t start_idx, 
 }
 
 namespace detail_patricia_tree {
-// MSD Radix Sortの実装
-// depth: 現在見ている文字位置
-// [start, end): ソート対象のインデックス範囲
+// MSD Radix Sort(再帰と非再帰のハイブリッド)
+// - 最大バケットは再帰せず while ループで反復 → 再帰深さは文字列長に依存せず O(log n)
+// - temp はスコープを閉じて降下前に解放 → 同時ヒープを O(n) に抑制
+// - 共通接頭辞（単一バケット）は分配/コピーを省いて depth を進める
+// depth: 現在見ている文字位置 / [start, end): ソート対象のインデックス範囲
 template <AlphabetPolicy Alphabet>
 void msd_radix_sort_recursive(std::vector<uint32_t> &indices,
                               const std::vector<std::string> &input_data, size_t start, size_t end,
                               size_t depth) {
     using Tree = PatriciaTree<Alphabet>;
 
-    // 小さい範囲は通常のソートの方が高速
     constexpr size_t INSERTION_SORT_THRESHOLD = 16;
-    if (end - start <= INSERTION_SORT_THRESHOLD) {
-        std::sort(indices.begin() + start, indices.begin() + end, [&](uint32_t a, uint32_t b) {
-            const std::string &sa = input_data[a];
-            const std::string &sb = input_data[b];
-            size_t pos = depth;
-            // コードで比較（MSD Radix Sortと一貫性を保つ）
-            while (pos < sa.size() && pos < sb.size()) {
-                uint8_t code_a = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sa[pos])];
-                uint8_t code_b = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sb[pos])];
-                if (code_a != code_b) {
-                    return code_a < code_b;
-                }
-                ++pos;
-            }
-            // 一方が他方のプレフィックスの場合、短い方が先（終端が先）
-            return sa.size() < sb.size();
-        });
-        return;
-    }
-
-    // バケット: コード 0..CODE_MAX (TERM を含む)
     constexpr size_t BUCKET_SIZE = Tree::BUCKET_SIZE;
-    std::array<size_t, BUCKET_SIZE + 1> count = {};
 
-    // 1. カウント
-    for (size_t i = start; i < end; ++i) {
-        const std::string &s = input_data[indices[i]];
-        uint8_t code;
-        if (depth >= s.size()) {
-            code = Tree::CODE_TERM;  // 終端
-        } else {
-            code = Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
+    // 最大バケットはこの while ループで [start, end, depth] を更新して反復処理し、
+    // 再帰するのは「最大以外」のバケットだけにする。
+    while (true) {
+        // --- 小区間は比較ソートに委譲 ---
+        if (end - start <= INSERTION_SORT_THRESHOLD) {
+            std::sort(indices.begin() + start, indices.begin() + end, [&](uint32_t a, uint32_t b) {
+                const std::string &sa = input_data[a];
+                const std::string &sb = input_data[b];
+                size_t pos = depth;
+                // コードで比較（MSD Radix Sortと一貫性を保つ）
+                while (pos < sa.size() && pos < sb.size()) {
+                    uint8_t code_a = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sa[pos])];
+                    uint8_t code_b = Tree::CHAR_TO_CODE[static_cast<unsigned char>(sb[pos])];
+                    if (code_a != code_b) {
+                        return code_a < code_b;
+                    }
+                    ++pos;
+                }
+                // 一方が他方のプレフィックスなら短い方（終端）が先
+                return sa.size() < sb.size();
+            });
+            return;
         }
-        count[code + 1]++;
-    }
 
-    // 2. 累積和（各バケットの開始位置を計算）
-    for (size_t i = 0; i < BUCKET_SIZE; ++i) {
-        count[i + 1] += count[i];
-    }
-
-    // バケットの境界を保存
-    std::array<size_t, BUCKET_SIZE + 1> bucket_bounds = count;
-
-    // 3. 配置
-    std::vector<uint32_t> temp(end - start);
-    for (size_t i = start; i < end; ++i) {
-        const std::string &s = input_data[indices[i]];
-        uint8_t code;
-        if (depth >= s.size()) {
-            code = Tree::CODE_TERM;
-        } else {
-            code = Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
+        // --- 1. カウント（この時点で count[c+1] = コード c の個数） ---
+        std::array<size_t, BUCKET_SIZE + 1> count = {};
+        for (size_t i = start; i < end; ++i) {
+            const std::string &s = input_data[indices[i]];
+            uint8_t code = (depth >= s.size())
+                               ? Tree::CODE_TERM
+                               : Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
+            count[code + 1]++;
         }
-        temp[count[code]++] = indices[i];
-    }
 
-    // 4. 結果をコピー
-    std::copy(temp.begin(), temp.end(), indices.begin() + start);
-
-    // 5. 各バケットに対して再帰（終端以外）
-    for (size_t i = 0; i < BUCKET_SIZE; ++i) {
-        size_t bucket_start = start + bucket_bounds[i];
-        size_t bucket_end = start + bucket_bounds[i + 1];
-
-        // 終端以外のバケットで2個以上の要素があれば再帰
-        if (i != Tree::CODE_TERM && bucket_end > bucket_start + 1) {
-            msd_radix_sort_recursive<Alphabet>(indices, input_data, bucket_start, bucket_end,
-                                               depth + 1);
+        // --- 2. 単一バケット（共通接頭辞スキップ） ---
+        // 非空バケットが1つだけなら分配もコピーも不要。
+        //   終端のみ  → 全要素が等しい（ここで終わる）ので完了。
+        //   非終端のみ → 全員が同じ文字で続く=共通接頭辞。depth を進めて反復（再帰しない）。
+        {
+            size_t nonempty = 0;
+            size_t sole_code = 0;
+            for (size_t c = 0; c < BUCKET_SIZE; ++c) {
+                if (count[c + 1] > 0) {
+                    ++nonempty;
+                    sole_code = c;
+                }
+            }
+            if (nonempty == 1) {
+                if (sole_code == Tree::CODE_TERM) {
+                    return;
+                }
+                ++depth;
+                continue;
+            }
         }
+
+        // --- 3. 累積和（各バケットの開始位置） ---
+        for (size_t i = 0; i < BUCKET_SIZE; ++i) {
+            count[i + 1] += count[i];
+        }
+        const std::array<size_t, BUCKET_SIZE + 1> bucket_bounds = count;
+
+        // --- 4. 分配とコピーバック（temp はここで確保し、降下前に解放する） ---
+        {
+            std::vector<uint32_t> temp(end - start);
+            for (size_t i = start; i < end; ++i) {
+                const std::string &s = input_data[indices[i]];
+                uint8_t code = (depth >= s.size())
+                                   ? Tree::CODE_TERM
+                                   : Tree::CHAR_TO_CODE[static_cast<unsigned char>(s[depth])];
+                temp[count[code]++] = indices[i];
+            }
+            std::copy(temp.begin(), temp.end(), indices.begin() + start);
+        }
+
+        // --- 5. 最大バケットは反復、それ以外は再帰 ---
+        // 終端バケットは全要素が等しいので処理不要。非終端かつ2要素以上のバケットのみ対象。
+        size_t best_start = 0;
+        size_t best_end = 0;
+        size_t best_size = 0;
+        for (size_t c = 0; c < BUCKET_SIZE; ++c) {
+            if (c == Tree::CODE_TERM) {
+                continue;
+            }
+            size_t b_start = start + bucket_bounds[c];
+            size_t b_end = start + bucket_bounds[c + 1];
+            if (b_end - b_start < 2) {
+                continue;  // 0/1 要素は既にソート済み
+            }
+            if (b_end - b_start > best_size) {
+                // それまでの最大候補は再帰に回し、新しい最大を採用
+                if (best_size >= 2) {
+                    msd_radix_sort_recursive<Alphabet>(indices, input_data, best_start, best_end,
+                                                       depth + 1);
+                }
+                best_start = b_start;
+                best_end = b_end;
+                best_size = b_end - b_start;
+            } else {
+                msd_radix_sort_recursive<Alphabet>(indices, input_data, b_start, b_end, depth + 1);
+            }
+        }
+
+        // 最大バケットだけは反復で処理（再帰しない）
+        if (best_size >= 2) {
+            start = best_start;
+            end = best_end;
+            ++depth;
+            continue;
+        }
+        return;
     }
 }
 
