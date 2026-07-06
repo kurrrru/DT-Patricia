@@ -4,6 +4,7 @@ BasedOnStyle:    Google
 Standard:        c++20              # concepts / requires を正しく解釈させる
 
 # ==== Google からの上書き（好みの部分だけ） ====
+InsertBraces: true
 IndentWidth:     4                  # Google=2 → 4スペース
 AccessModifierOffset: -3            # メンバ=列4 に対し public:/private: を列1 に
 ColumnLimit:     100                # Google=80 → 100（緩め）

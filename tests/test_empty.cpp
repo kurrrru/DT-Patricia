@@ -66,9 +66,13 @@ class BruteForceChecker {
     // (score ASC, string_id ASC) (ties at the boundary score are included)
     std::vector<dt_patricia::AlignmentResult> ed_kth_smallest(const std::string &query,
                                                               size_t k) const {
-        if (k == 0) return {};
+        if (k == 0) {
+            return {};
+        }
         auto all = ed_to_all(query);
-        if (k >= all.size()) return all;
+        if (k >= all.size()) {
+            return all;
+        }
         uint32_t threshold = all[k - 1].score;
         auto it = std::upper_bound(
             all.begin(), all.end(), threshold,
@@ -106,8 +110,12 @@ class BruteForceChecker {
         const size_t n = s.size(), m = t.size();
         std::vector<std::vector<uint32_t>> dp(n + 1, std::vector<uint32_t>(m + 1, INF));
         dp[0][0] = 0;
-        for (size_t i = 1; i <= n; ++i) dp[i][0] = _cost.gap * static_cast<uint32_t>(i);
-        for (size_t j = 1; j <= m; ++j) dp[0][j] = _cost.gap * static_cast<uint32_t>(j);
+        for (size_t i = 1; i <= n; ++i) {
+            dp[i][0] = _cost.gap * static_cast<uint32_t>(i);
+        }
+        for (size_t j = 1; j <= m; ++j) {
+            dp[0][j] = _cost.gap * static_cast<uint32_t>(j);
+        }
         for (size_t i = 1; i <= n; ++i) {
             for (size_t j = 1; j <= m; ++j) {
                 uint32_t sub = (code_of(s[i - 1]) == code_of(t[j - 1])) ? 0u : _cost.mismatch;
@@ -252,9 +260,13 @@ static void sort_results(std::vector<dt_patricia::AlignmentResult> &v) {
 
 static bool results_equal(const std::vector<dt_patricia::AlignmentResult> &a,
                           const std::vector<dt_patricia::AlignmentResult> &b) {
-    if (a.size() != b.size()) return false;
+    if (a.size() != b.size()) {
+        return false;
+    }
     for (size_t i = 0; i < a.size(); ++i) {
-        if (a[i].string_id != b[i].string_id || a[i].score != b[i].score) return false;
+        if (a[i].string_id != b[i].string_id || a[i].score != b[i].score) {
+            return false;
+        }
     }
     return true;
 }
@@ -264,15 +276,21 @@ static void print_mismatch(const std::string &query, const std::string &op_name,
                            const std::vector<dt_patricia::AlignmentResult> &actual,
                            const std::vector<std::string> &targets) {
     std::cout << "    MISMATCH query=\"" << query << "\" op=" << op_name;
-    if (op_name != "ed_to_all") std::cout << "(" << k << ")";
+    if (op_name != "ed_to_all") {
+        std::cout << "(" << k << ")";
+    }
     std::cout << "\n";
 
     std::cout << "    brute [" << expected.size() << "]:";
-    for (const auto &r : expected) std::cout << " " << targets[r.string_id] << ":" << r.score;
+    for (const auto &r : expected) {
+        std::cout << " " << targets[r.string_id] << ":" << r.score;
+    }
     std::cout << "\n";
 
     std::cout << "    dtp   [" << actual.size() << "]:";
-    for (const auto &r : actual) std::cout << " " << targets[r.string_id] << ":" << r.score;
+    for (const auto &r : actual) {
+        std::cout << " " << targets[r.string_id] << ":" << r.score;
+    }
     std::cout << "\n";
 }
 
@@ -320,21 +338,31 @@ static bool run_with_cost(const TestCase &tc, CostType cost) {
 
 template <typename Alphabet>
 static bool dispatch_cost(const TestCase &tc) {
-    if (tc.cost_type == "UnitCost") return run_with_cost<Alphabet>(tc, dt_patricia::UnitCost{});
-    if (tc.cost_type == "LinearGapCost")
+    if (tc.cost_type == "UnitCost") {
+        return run_with_cost<Alphabet>(tc, dt_patricia::UnitCost{});
+    }
+    if (tc.cost_type == "LinearGapCost") {
         return run_with_cost<Alphabet>(tc, dt_patricia::LinearGapCost(tc.cost_p1, tc.cost_p2));
-    if (tc.cost_type == "AffineGapCost")
+    }
+    if (tc.cost_type == "AffineGapCost") {
         return run_with_cost<Alphabet>(
             tc, dt_patricia::AffineGapCost(tc.cost_p1, tc.cost_p2, tc.cost_p3));
+    }
 
     std::cout << "  Unknown cost type: " << tc.cost_type << "\n";
     return false;
 }
 
 static bool run_test_case(const TestCase &tc) {
-    if (tc.alphabet == "DnaAlphabet") return dispatch_cost<dt_patricia::DnaAlphabet>(tc);
-    if (tc.alphabet == "RyAlphabet") return dispatch_cost<dt_patricia::RyAlphabet>(tc);
-    if (tc.alphabet == "ProteinAlphabet") return dispatch_cost<dt_patricia::ProteinAlphabet>(tc);
+    if (tc.alphabet == "DnaAlphabet") {
+        return dispatch_cost<dt_patricia::DnaAlphabet>(tc);
+    }
+    if (tc.alphabet == "RyAlphabet") {
+        return dispatch_cost<dt_patricia::RyAlphabet>(tc);
+    }
+    if (tc.alphabet == "ProteinAlphabet") {
+        return dispatch_cost<dt_patricia::ProteinAlphabet>(tc);
+    }
 
     std::cout << "  Unknown alphabet: " << tc.alphabet << "\n";
     return false;
