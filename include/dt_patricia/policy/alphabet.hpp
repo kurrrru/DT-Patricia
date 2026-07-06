@@ -77,7 +77,9 @@ inline std::string canonicalize(std::string_view s) {
         return m;
     }();
     std::string out(s.size(), '\0');
-    for (std::size_t i = 0; i < s.size(); ++i) out[i] = CANON[static_cast<unsigned char>(s[i])];
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        out[i] = CANON[static_cast<unsigned char>(s[i])];
+    }
     return out;
 }
 

@@ -33,8 +33,9 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                 ++idx;
                 while (idx < wf_array.active_size() &&
                        internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx)) ==
-                           node_id)
+                           node_id) {
                     ++idx;
+                }
                 continue;
             }
 
@@ -42,8 +43,9 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             size_t end_idx = idx + 1;
             while (end_idx < wf_array.active_size() &&
                    internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(end_idx)) ==
-                       node_id)
+                       node_id) {
                 ++end_idx;
+            }
 
             const int32_t label_len =
                 static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
@@ -61,16 +63,19 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             const int32_t k_base = k_lo - 2;
             const int32_t scratch_sz = k_hi - k_lo + 5;
 
-            if (static_cast<int32_t>(expand_scratch.size()) < scratch_sz)
+            if (static_cast<int32_t>(expand_scratch.size()) < scratch_sz) {
                 expand_scratch.assign(scratch_sz, NULL_OFF);
-            else
+            } else {
                 std::fill(expand_scratch.begin(), expand_scratch.begin() + scratch_sz, NULL_OFF);
+            }
 
             for (size_t i = start_idx; i < end_idx; ++i) {
                 int32_t k = internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(i));
                 int32_t j = wf_array.get_offset(i);
                 int32_t &slot = expand_scratch[k - k_base];
-                if (j > slot) slot = j;  // take max on duplicate k (shouldn't happen but safe)
+                if (j > slot) {
+                    slot = j;  // take max on duplicate k (shouldn't happen but safe)
+                }
             }
 
             // Dense loop over output range [k_lo-1, k_hi+1]
@@ -92,9 +97,10 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                     (src_i > NULL_OFF && k - 1 + src_i + 1 < query_length) ? src_i : INT32_MIN;
 
                 const int32_t max_j = std::max(del_j, std::max(sub_j, ins_j));
-                if (max_j >= -1)
+                if (max_j >= -1) {
                     next_wf_array.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, k),
                                                       max_j);
+                }
             }
 
             idx = end_idx;
@@ -121,31 +127,37 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
         while (start_idx_d < wf_array_d.active_size() || start_idx_s < wf_array_s.active_size() ||
                start_idx_i < wf_array_i.active_size()) {
             uint32_t node_id = UINT32_MAX;
-            if (start_idx_d < wf_array_d.active_size())
+            if (start_idx_d < wf_array_d.active_size()) {
                 node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
                                                 wf_array_d.get_vk(start_idx_d)));
-            if (start_idx_s < wf_array_s.active_size())
+            }
+            if (start_idx_s < wf_array_s.active_size()) {
                 node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
                                                 wf_array_s.get_vk(start_idx_s)));
-            if (start_idx_i < wf_array_i.active_size())
+            }
+            if (start_idx_i < wf_array_i.active_size()) {
                 node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
                                                 wf_array_i.get_vk(start_idx_i)));
+            }
 
             size_t end_idx_d = start_idx_d;
             while (end_idx_d < wf_array_d.active_size() &&
                    internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) ==
-                       node_id)
+                       node_id) {
                 ++end_idx_d;
+            }
             size_t end_idx_s = start_idx_s;
             while (end_idx_s < wf_array_s.active_size() &&
                    internal::WavefrontArray::calc_node_id_from_vk(wf_array_s.get_vk(end_idx_s)) ==
-                       node_id)
+                       node_id) {
                 ++end_idx_s;
+            }
             size_t end_idx_i = start_idx_i;
             while (end_idx_i < wf_array_i.active_size() &&
                    internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) ==
-                       node_id)
+                       node_id) {
                 ++end_idx_i;
+            }
 
             if (active_counts[node_id] == 0) {
                 start_idx_d = end_idx_d;
@@ -184,7 +196,9 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
                 if (k_d_target == min_k) {
                     const int32_t st_offset = wf_array_d.get_offset(idx_d);
-                    if (st_offset + 1 < label_len) max_j = st_offset + 1;
+                    if (st_offset + 1 < label_len) {
+                        max_j = st_offset + 1;
+                    }
                     ++idx_d;
                     k_d_raw =
                         (idx_d < end_idx_d)
@@ -197,7 +211,9 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                     const int32_t i_pos = k_s_raw + st_offset;
                     if (i_pos + 1 < query_length && st_offset + 1 < label_len) {
                         const int32_t new_j = st_offset + 1;
-                        if (new_j > max_j) max_j = new_j;
+                        if (new_j > max_j) {
+                            max_j = new_j;
+                        }
                     }
                     ++idx_s;
                     k_s_raw =
@@ -209,7 +225,9 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                 if (k_i_target == min_k) {
                     const int32_t st_offset = wf_array_i.get_offset(idx_i);
                     const int32_t i_pos = k_i_raw + st_offset;
-                    if (i_pos + 1 < query_length && st_offset > max_j) max_j = st_offset;
+                    if (i_pos + 1 < query_length && st_offset > max_j) {
+                        max_j = st_offset;
+                    }
                     ++idx_i;
                     k_i_raw =
                         (idx_i < end_idx_i)
@@ -217,9 +235,10 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                             : 0;
                 }
 
-                if (max_j >= -1)
+                if (max_j >= -1) {
                     next_wf_array.push_back_unchecked(
                         internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                }
             }
 
             start_idx_d = end_idx_d;
@@ -375,7 +394,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t st_offset = wf_array_m.get_offset(idx_m);
                 if (st_offset + 1 < label_len) {
                     const int32_t new_j = st_offset + 1;
-                    if (new_j > max_j) max_j = new_j;
+                    if (new_j > max_j) {
+                        max_j = new_j;
+                    }
                 }
                 ++idx_m;
                 k_m_d_raw = (idx_m < end_idx_m)
@@ -428,7 +449,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t i_pos = k_i_raw + st_offset;
                 if (i_pos + 1 < query_length) {
                     const int32_t new_j = st_offset;
-                    if (new_j > max_j) max_j = new_j;
+                    if (new_j > max_j) {
+                        max_j = new_j;
+                    }
                 }
                 ++idx_i;
                 k_i_raw = (idx_i < end_idx_i)
@@ -612,7 +635,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t i_pos = k_m_raw + st_offset;
                 if (i_pos + 1 < query_length && st_offset + 1 < label_len) {
                     const int32_t new_j = st_offset + 1;
-                    if (new_j > max_j) max_j = new_j;
+                    if (new_j > max_j) {
+                        max_j = new_j;
+                    }
                 }
                 ++idx_m;
                 k_m_raw = (idx_m < end_idx_m)
@@ -623,7 +648,9 @@ void DTPatricia<Alphabet, CostType>::expand(
             if (k_i_target == min_k) {
                 const int32_t st_offset = wf_array_im.get_offset(idx_i);
                 const int32_t new_j = st_offset;
-                if (new_j > max_j) max_j = new_j;
+                if (new_j > max_j) {
+                    max_j = new_j;
+                }
                 ++idx_i;
                 k_i_raw = (idx_i < end_idx_i)
                               ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i))
