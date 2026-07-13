@@ -39,9 +39,9 @@ ctest --test-dir build/tests --output-on-failure
 
 ```sh
 # === テスト（正しさ）===
-cmake --preset tests          # configure → build/tests/ に生成
-cmake --build --preset tests  # ビルド
-ctest --preset tests          # 実行（--output-on-failure は preset に内蔵）
+cmake --preset tests             # configure → build/tests/ に生成
+cmake --build --preset tests -j  # ビルド
+ctest --preset tests -j          # 実行（--output-on-failure は preset に内蔵）
 ```
 
 ```sh
