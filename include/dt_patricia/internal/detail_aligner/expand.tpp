@@ -1,4 +1,10 @@
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+
 #include <dt_patricia/aligner.hpp>
+#include <dt_patricia/internal/profile.hpp>
 
 namespace dt_patricia {
 
@@ -77,6 +83,8 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                     slot = j;  // take max on duplicate k (shouldn't happen but safe)
                 }
             }
+
+            internal::profile::record_node(end_idx - start_idx, static_cast<size_t>(scratch_sz));
 
             // Dense loop over output range [k_lo-1, k_hi+1]
             for (int32_t k = k_lo - 1; k <= k_hi + 1; ++k) {
@@ -168,6 +176,30 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
             const int32_t label_len =
                 static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
+
+            // [計測のみ] 密配列化した場合に必要な散布レーンの総量を見積もる
+            if constexpr (internal::profile::ENABLED) {
+                int32_t span_lo = INT32_MAX;
+                int32_t span_hi = INT32_MIN;
+                size_t lanes = 0;
+                const auto span_of = [&](const internal::WavefrontArray &wf, size_t lo, size_t hi) {
+                    if (lo >= hi) {
+                        return;
+                    }
+                    ++lanes;
+                    span_lo =
+                        std::min(span_lo, internal::WavefrontArray::calc_k_from_vk(wf.get_vk(lo)));
+                    span_hi = std::max(span_hi,
+                                       internal::WavefrontArray::calc_k_from_vk(wf.get_vk(hi - 1)));
+                };
+                span_of(wf_array_d, start_idx_d, end_idx_d);
+                span_of(wf_array_s, start_idx_s, end_idx_s);
+                if (lanes > 0) {
+                    const size_t lane_size = static_cast<size_t>(span_hi - span_lo) + 5;
+                    internal::profile::record_node(
+                        (end_idx_d - start_idx_d) + (end_idx_s - start_idx_s), lane_size * lanes);
+                }
+            }
 
             size_t idx_d = start_idx_d;
             size_t idx_s = start_idx_s;
@@ -261,10 +293,18 @@ void DTPatricia<Alphabet, CostType>::expand(
     int32_t curr_idx, size_t history_size, const std::vector<uint32_t> &active_counts,
     std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
     internal::WavefrontArray &pending_d, internal::WavefrontArray &merged_wf_array_d,
-    std::vector<int32_t> &expand_scratch) const
+    std::vector<int32_t> & /*expand_scratch*/, internal::ReachedOffsetTable &reached_d,
+    int32_t current_score) const
     requires(!CostType::is_linear)
 {
-    (void)expand_scratch;
+    // pending_d_buffer は呼び出し側で extend の子伝搬バッファと同じ配列を使い回している。
+    // extend が空にして返すことに依存しているため、利用側の前提としても表明する。
+#ifndef NDEBUG
+    for (const auto &buf : pending_d_buffer) {
+        assert(buf.empty());
+    }
+#endif
+
     next_wf_array_d.clear_logical_size();
     next_wf_array_m.clear_logical_size();
     next_wf_array_i.clear_logical_size();
@@ -286,6 +326,10 @@ void DTPatricia<Alphabet, CostType>::expand(
                                      10);
     next_wf_array_i.reserve_capacity((wf_array_m.active_size() + wf_array_i.active_size()) * 3 +
                                      10);
+
+    for (auto &buf : pending_d_buffer) {
+        buf.reserve_capacity(wf_array_d.active_size());
+    }
 
     size_t start_idx_d = 0;
     size_t start_idx_m = 0;
@@ -375,11 +419,18 @@ void DTPatricia<Alphabet, CostType>::expand(
                     const int32_t current_k = internal::WavefrontArray::calc_k_from_vk(st_vk);
                     const int32_t next_k = current_k + st_offset;
 
-                    for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
-                        uint32_t child = _patricia_tree.transition(node_id, code);
-                        if (child != 0 && active_counts[child] > 0) {
-                            pending_d_buffer[code - 1].push_back_state(child, next_k, 0);
-                            has_pending_d = true;
+                    const bool already_expanded =
+                        reached_d.dominated(node_id, current_k, st_offset, current_score);
+                    internal::profile::record_extend_state(already_expanded);
+                    if (!already_expanded) {
+                        reached_d.record(node_id, current_k, st_offset, current_score);
+                        for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
+                            uint32_t child = _patricia_tree.transition(node_id, code);
+                            if (child != 0 && active_counts[child] > 0) {
+                                pending_d_buffer[code - 1].push_back_unchecked(
+                                    internal::WavefrontArray::calc_vk(child, next_k), 0);
+                                has_pending_d = true;
+                            }
                         }
                     }
                 }
@@ -467,10 +518,16 @@ void DTPatricia<Alphabet, CostType>::expand(
         }
 
         if (has_pending_d) {
+            size_t pending_total = 0;
+            for (const auto &buf : pending_d_buffer) {
+                pending_total += buf.active_size();
+            }
+            pending_d.reserve_capacity(pending_d.active_size() + pending_total);
+
             for (int i = 0; i < tree_type::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
-                    pending_d.push_back_state(pending_d_buffer[i].get_vk(j),
-                                              pending_d_buffer[i].get_offset(j));
+                    pending_d.push_back_unchecked(pending_d_buffer[i].get_vk(j),
+                                                  pending_d_buffer[i].get_offset(j));
                 }
                 pending_d_buffer[i].clear_logical_size();
             }
@@ -489,16 +546,19 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t len1 = next_wf_array_d.active_size();
         size_t len2 = pending_d.active_size();
 
+        // 出力件数は高々 len1 + len2（vk 衝突時は 1 件に畳まれるのでこれが厳密な上限）
+        merged_wf_array_d.reserve_capacity(len1 + len2);
+
         while (idx1 < len1 || idx2 < len2) {
             if (idx1 == len1) {
                 const uint64_t st_vk = pending_d.get_vk(idx2);
                 const int32_t st_offset = pending_d.get_offset(idx2);
-                merged_wf_array_d.push_back_state(st_vk, st_offset);
+                merged_wf_array_d.push_back_unchecked(st_vk, st_offset);
                 ++idx2;
             } else if (idx2 == len2) {
                 const uint64_t st_vk = next_wf_array_d.get_vk(idx1);
                 const int32_t st_offset = next_wf_array_d.get_offset(idx1);
-                merged_wf_array_d.push_back_state(st_vk, st_offset);
+                merged_wf_array_d.push_back_unchecked(st_vk, st_offset);
                 ++idx1;
             } else {
                 const uint64_t st1_vk = next_wf_array_d.get_vk(idx1);
@@ -507,16 +567,16 @@ void DTPatricia<Alphabet, CostType>::expand(
                 const int32_t st2_offset = pending_d.get_offset(idx2);
 
                 if (st1_vk < st2_vk) {
-                    merged_wf_array_d.push_back_state(st1_vk, st1_offset);
+                    merged_wf_array_d.push_back_unchecked(st1_vk, st1_offset);
                     ++idx1;
                 } else if (st2_vk < st1_vk) {
-                    merged_wf_array_d.push_back_state(st2_vk, st2_offset);
+                    merged_wf_array_d.push_back_unchecked(st2_vk, st2_offset);
                     ++idx2;
                 } else {
                     // vk が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用
                     const int32_t winner_offset =
                         (st1_offset >= st2_offset) ? st1_offset : st2_offset;
-                    merged_wf_array_d.push_back_state(st1_vk, winner_offset);
+                    merged_wf_array_d.push_back_unchecked(st1_vk, winner_offset);
                     ++idx1;
                     ++idx2;
                 }

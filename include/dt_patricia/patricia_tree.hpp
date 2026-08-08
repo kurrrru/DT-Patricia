@@ -122,6 +122,11 @@ class PatriciaTree {
         return _subtree_min_len;
     }
 
+    // 根から各ノードの「親」までのパス長（そのノード自身のラベルは含まない）。
+    [[nodiscard]] inline const std::vector<uint32_t> &get_parent_path_lengths() const noexcept {
+        return _parent_path_len;
+    }
+
     [[nodiscard]] uint32_t get_parent(uint32_t node_id) const noexcept {
         if (node_id >= _check.size()) {
             return 0;
@@ -157,6 +162,8 @@ class PatriciaTree {
     std::vector<uint32_t>
         _subtree_max_len;  // index=ノードID,
                            // 値=そのノードから部分木の葉までの文字列の最大長(そのノードのラベル長を含む)
+    std::vector<uint32_t> _parent_path_len;  // index=ノードID, 値=根からそのノードの親までのパス長
+
     std::vector<uint32_t>
         _subtree_min_len;  // index=ノードID,
                            // 値=そのノードから部分木の葉までの文字列の最小長(そのノードのラベル長を含む)
@@ -175,6 +182,7 @@ class PatriciaTree {
                         const std::vector<std::string> &input_data,
                         const std::vector<uint32_t> &sorted_indices, std::vector<QueueItem> &queue);
     void compute_subtree_length_bounds();
+    void compute_parent_path_lengths();
 
  public:
     // =========================================================
