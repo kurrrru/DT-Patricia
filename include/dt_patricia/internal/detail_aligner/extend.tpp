@@ -1,7 +1,6 @@
 #include <cassert>
 
 #include <dt_patricia/aligner.hpp>
-#include <dt_patricia/internal/profile.hpp>
 
 namespace dt_patricia {
 
@@ -127,7 +126,6 @@ void DTPatricia<Alphabet, CostType>::extend(
 
         if constexpr (internal::DOMINANCE_AT_EXTEND_ENTRY) {
             const bool dominated = reached.dominated(node_id, k, j, current_score);
-            internal::profile::record_extend_state(dominated);
             if (dominated) {
                 if (wf_array_idx_increment) {
                     ++wf_array_idx;
@@ -167,7 +165,6 @@ void DTPatricia<Alphabet, CostType>::extend(
             bool already_expanded = false;
             if constexpr (!internal::DOMINANCE_AT_EXTEND_ENTRY) {
                 already_expanded = reached.dominated(node_id, k, j, current_score);
-                internal::profile::record_extend_state(already_expanded);
                 if (!already_expanded) {
                     reached.record(node_id, k, j, current_score);
                 }

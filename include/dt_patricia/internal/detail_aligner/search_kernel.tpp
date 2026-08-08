@@ -1,5 +1,4 @@
 #include <dt_patricia/aligner.hpp>
-#include <dt_patricia/internal/profile.hpp>
 
 namespace dt_patricia {
 
@@ -134,7 +133,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 3: DT-Patricia Expand
-        internal::profile::set_score(current_score);
         expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts,
                expand_scratch);
 
@@ -304,7 +302,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 3: DT-Patricia Expand
-        internal::profile::set_score(current_score);
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i, next_wf_array_d,
                next_wf_array_m, next_wf_array_i, curr_idx, history_size, active_counts, buffer,
                pending_d, merged_wf_array_d, expand_scratch, reached_d, current_score);

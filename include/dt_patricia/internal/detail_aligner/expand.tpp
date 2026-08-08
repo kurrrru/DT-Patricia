@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <dt_patricia/aligner.hpp>
-#include <dt_patricia/internal/profile.hpp>
 
 namespace dt_patricia {
 
@@ -83,8 +82,6 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                     slot = j;  // take max on duplicate k (shouldn't happen but safe)
                 }
             }
-
-            internal::profile::record_node(end_idx - start_idx, static_cast<size_t>(scratch_sz));
 
             // Dense loop over output range [k_lo-1, k_hi+1]
             for (int32_t k = k_lo - 1; k <= k_hi + 1; ++k) {
@@ -176,30 +173,6 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
             const int32_t label_len =
                 static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
-
-            // [計測のみ] 密配列化した場合に必要な散布レーンの総量を見積もる
-            if constexpr (internal::profile::ENABLED) {
-                int32_t span_lo = INT32_MAX;
-                int32_t span_hi = INT32_MIN;
-                size_t lanes = 0;
-                const auto span_of = [&](const internal::WavefrontArray &wf, size_t lo, size_t hi) {
-                    if (lo >= hi) {
-                        return;
-                    }
-                    ++lanes;
-                    span_lo =
-                        std::min(span_lo, internal::WavefrontArray::calc_k_from_vk(wf.get_vk(lo)));
-                    span_hi = std::max(span_hi,
-                                       internal::WavefrontArray::calc_k_from_vk(wf.get_vk(hi - 1)));
-                };
-                span_of(wf_array_d, start_idx_d, end_idx_d);
-                span_of(wf_array_s, start_idx_s, end_idx_s);
-                if (lanes > 0) {
-                    const size_t lane_size = static_cast<size_t>(span_hi - span_lo) + 5;
-                    internal::profile::record_node(
-                        (end_idx_d - start_idx_d) + (end_idx_s - start_idx_s), lane_size * lanes);
-                }
-            }
 
             size_t idx_d = start_idx_d;
             size_t idx_s = start_idx_s;
@@ -421,7 +394,6 @@ void DTPatricia<Alphabet, CostType>::expand(
 
                     const bool already_expanded =
                         reached_d.dominated(node_id, current_k, st_offset, current_score);
-                    internal::profile::record_extend_state(already_expanded);
                     if (!already_expanded) {
                         reached_d.record(node_id, current_k, st_offset, current_score);
                         for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
