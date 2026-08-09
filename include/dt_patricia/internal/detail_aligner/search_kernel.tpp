@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include <dt_patricia/aligner.hpp>
 
 namespace dt_patricia {
@@ -49,6 +51,9 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     internal::ReachedOffsetTable reached;
     size_t states_seen = 0;
     const size_t reached_enable_threshold = _patricia_tree.node_count();
+
+    std::vector<uint32_t> pending_found(active_counts.size(), 0);
+    uint32_t pending_max_node = 0;  // この段で積んだ最大のノード ID (0 = 何も積んでいない)
 
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     const uint32_t root = _patricia_tree.root_id();
@@ -114,17 +119,27 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
                             found_count++;
                         }
                         if (found_count > 0) {
-                            uint32_t curr_node = node_id;
-                            while (curr_node != 0) {
-                                if (active_counts[curr_node] > 0) {
-                                    active_counts[curr_node] -= found_count;
-                                }
-                                curr_node = _patricia_tree.get_parent(curr_node);
-                            }
+                            pending_found[node_id] += found_count;
+                            pending_max_node = std::max(pending_max_node, node_id);
                         }
                     }
                 }
             }
+        }
+
+        if (pending_max_node != 0) {
+            for (uint32_t v = pending_max_node; v >= root; --v) {
+                const uint32_t delta = pending_found[v];
+                if (delta == 0) {
+                    continue;
+                }
+                assert(active_counts[v] >= delta);
+                active_counts[v] -= delta;
+                pending_found[_patricia_tree.get_parent(v)] += delta;
+                pending_found[v] = 0;
+            }
+            pending_found[0] = 0;  // 根の親は存在しないので、そこへ渡ったぶんは捨てる
+            pending_max_node = 0;
         }
 
         // 停止条件チェック
@@ -199,6 +214,9 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     internal::ReachedOffsetTable reached;
     size_t states_seen = 0;
     const size_t reached_enable_threshold = _patricia_tree.node_count();
+
+    std::vector<uint32_t> pending_found(active_counts.size(), 0);
+    uint32_t pending_max_node = 0;  // この段で積んだ最大のノード ID (0 = 何も積んでいない)
 
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     const uint32_t root = _patricia_tree.root_id();
@@ -283,17 +301,27 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
                             found_count++;
                         }
                         if (found_count > 0) {
-                            uint32_t curr_node = node_id;
-                            while (curr_node != 0) {
-                                if (active_counts[curr_node] > 0) {
-                                    active_counts[curr_node] -= found_count;
-                                }
-                                curr_node = _patricia_tree.get_parent(curr_node);
-                            }
+                            pending_found[node_id] += found_count;
+                            pending_max_node = std::max(pending_max_node, node_id);
                         }
                     }
                 }
             }
+        }
+
+        if (pending_max_node != 0) {
+            for (uint32_t v = pending_max_node; v >= root; --v) {
+                const uint32_t delta = pending_found[v];
+                if (delta == 0) {
+                    continue;
+                }
+                assert(active_counts[v] >= delta);
+                active_counts[v] -= delta;
+                pending_found[_patricia_tree.get_parent(v)] += delta;
+                pending_found[v] = 0;
+            }
+            pending_found[0] = 0;  // 根の親は存在しないので、そこへ渡ったぶんは捨てる
+            pending_max_node = 0;
         }
 
         // 停止条件チェック
