@@ -17,7 +17,7 @@ void DTPatricia<Alphabet, CostType>::prune_by_upper_bound(
     for (size_t i = 0; i < wf_array.active_size(); i++) {
         const uint64_t vd = wf_array.get_vd(i);
         uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vd(vd);
-        int32_t diag = internal::WavefrontArray::calc_d_from_vd(vd);
+        int32_t diag = internal::WavefrontArray::calc_diag_from_vd(vd);
         int32_t j_pos = wf_array.get_offset(i);
         int32_t i_pos = diag + j_pos;
         int32_t max_remain = subtree_max_lengths[node_id] - (j_pos + 1);
@@ -51,7 +51,7 @@ void DTPatricia<Alphabet, CostType>::prune_by_upper_bound(
         for (size_t i = 0; i < wf.active_size(); ++i) {
             const uint64_t vd = wf.get_vd(i);
             uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vd(vd);
-            int32_t diag = internal::WavefrontArray::calc_d_from_vd(vd);
+            int32_t diag = internal::WavefrontArray::calc_diag_from_vd(vd);
             int32_t j_pos = wf.get_offset(i);
             int32_t i_pos = diag + j_pos;
 

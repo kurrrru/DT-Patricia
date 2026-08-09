@@ -111,7 +111,7 @@ class WavefrontArray {
 
     static uint32_t calc_node_id_from_vd(uint64_t vd) { return static_cast<uint32_t>(vd >> 32); }
 
-    static int32_t calc_d_from_vd(uint64_t vd) {
+    static int32_t calc_diag_from_vd(uint64_t vd) {
         return static_cast<int32_t>(vd & DIAGONAL_MASK) - DIAGONAL_OFFSET;
     }
 

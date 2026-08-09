@@ -121,7 +121,7 @@ void DTPatricia<Alphabet, CostType>::extend(
         last_node_id = node_id;
 
         // === ステップ3: 支配判定（入口版）===
-        int32_t diag = internal::WavefrontArray::calc_d_from_vd(current_vd);
+        int32_t diag = internal::WavefrontArray::calc_diag_from_vd(current_vd);
         int32_t j = current_offset;
 
         if constexpr (internal::DOMINANCE_AT_EXTEND_ENTRY) {

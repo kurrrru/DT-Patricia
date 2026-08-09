@@ -99,7 +99,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         for (size_t idx = 0; idx < curr_wf.active_size(); ++idx) {
             uint64_t curr_vd = curr_wf.get_vd(idx);
             uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vd(curr_vd);
-            int32_t diag = internal::WavefrontArray::calc_d_from_vd(curr_vd);
+            int32_t diag = internal::WavefrontArray::calc_diag_from_vd(curr_vd);
             int32_t j = curr_wf.get_offset(idx);
             int32_t i = diag + j;
 
@@ -281,7 +281,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         for (size_t idx = 0; idx < curr_wf_m.active_size(); ++idx) {
             uint64_t curr_vd = curr_wf_m.get_vd(idx);
             uint32_t node_id = internal::WavefrontArray::calc_node_id_from_vd(curr_vd);
-            int32_t diag = internal::WavefrontArray::calc_d_from_vd(curr_vd);
+            int32_t diag = internal::WavefrontArray::calc_diag_from_vd(curr_vd);
             int32_t j = curr_wf_m.get_offset(idx);
             int32_t i = diag + j;
 
