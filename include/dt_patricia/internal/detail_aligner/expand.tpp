@@ -32,12 +32,12 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
         for (size_t idx = 0; idx < wf_array.active_size();) {
             const uint32_t node_id =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array.get_vd(idx));
 
             if (active_counts[node_id] == 0) {
                 ++idx;
                 while (idx < wf_array.active_size() &&
-                       internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(idx)) ==
+                       internal::WavefrontArray::calc_node_id_from_vd(wf_array.get_vd(idx)) ==
                            node_id) {
                     ++idx;
                 }
@@ -47,26 +47,26 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             const size_t start_idx = idx;
             size_t end_idx = idx + 1;
             while (end_idx < wf_array.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array.get_vk(end_idx)) ==
+                   internal::WavefrontArray::calc_node_id_from_vd(wf_array.get_vd(end_idx)) ==
                        node_id) {
                 ++end_idx;
             }
 
             const int32_t label_len =
                 static_cast<int32_t>(_patricia_tree.get_label_length(node_id));
-            const int32_t k_lo =
-                internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(start_idx));
-            const int32_t k_hi =
-                internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(end_idx - 1));
+            const int32_t diag_lo =
+                internal::WavefrontArray::calc_d_from_vd(wf_array.get_vd(start_idx));
+            const int32_t diag_hi =
+                internal::WavefrontArray::calc_d_from_vd(wf_array.get_vd(end_idx - 1));
 
-            // scratch indexed by (k - k_base), k_base = k_lo - 2
-            // [0]          = k_lo-2  sentinel (always NULL)
-            // [1]          = k_lo-1  left pad (NULL after scatter)
-            // [2..range+1] = k_lo..k_hi
-            // [range+2]    = k_hi+1  right pad (NULL after scatter)
-            // [range+3]    = k_hi+2  sentinel for del read at k=k_hi+1
-            const int32_t k_base = k_lo - 2;
-            const int32_t scratch_sz = k_hi - k_lo + 5;
+            // scratch indexed by (diag - diag_base), diag_base = diag_lo - 2
+            // [0]          = diag_lo-2  sentinel (always NULL)
+            // [1]          = diag_lo-1  left pad (NULL after scatter)
+            // [2..range+1] = diag_lo..diag_hi
+            // [range+2]    = diag_hi+1  right pad (NULL after scatter)
+            // [range+3]    = diag_hi+2  sentinel for del read at diag=diag_hi+1
+            const int32_t diag_base = diag_lo - 2;
+            const int32_t scratch_sz = diag_hi - diag_lo + 5;
 
             if (static_cast<int32_t>(expand_scratch.size()) < scratch_sz) {
                 expand_scratch.assign(scratch_sz, NULL_OFF);
@@ -75,17 +75,17 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             }
 
             for (size_t i = start_idx; i < end_idx; ++i) {
-                int32_t k = internal::WavefrontArray::calc_k_from_vk(wf_array.get_vk(i));
+                int32_t diag = internal::WavefrontArray::calc_d_from_vd(wf_array.get_vd(i));
                 int32_t j = wf_array.get_offset(i);
-                int32_t &slot = expand_scratch[k - k_base];
+                int32_t &slot = expand_scratch[diag - diag_base];
                 if (j > slot) {
-                    slot = j;  // take max on duplicate k (shouldn't happen but safe)
+                    slot = j;  // take max on duplicate diag (shouldn't happen but safe)
                 }
             }
 
-            // Dense loop over output range [k_lo-1, k_hi+1]
-            for (int32_t k = k_lo - 1; k <= k_hi + 1; ++k) {
-                const int32_t s = k - k_base;  // s in [1, k_hi-k_lo+3]
+            // Dense loop over output range [diag_lo-1, diag_hi+1]
+            for (int32_t diag = diag_lo - 1; diag <= diag_hi + 1; ++diag) {
+                const int32_t s = diag - diag_base;  // s in [1, diag_hi-diag_lo+3]
 
                 const int32_t src_d = expand_scratch[s + 1];
                 const int32_t del_j =
@@ -93,18 +93,18 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
                 const int32_t src_s = expand_scratch[s];
                 const int32_t sub_j =
-                    (src_s > NULL_OFF && src_s + 1 < label_len && k + src_s + 1 < query_length)
+                    (src_s > NULL_OFF && src_s + 1 < label_len && diag + src_s + 1 < query_length)
                         ? src_s + 1
                         : INT32_MIN;
 
                 const int32_t src_i = expand_scratch[s - 1];
                 const int32_t ins_j =
-                    (src_i > NULL_OFF && k - 1 + src_i + 1 < query_length) ? src_i : INT32_MIN;
+                    (src_i > NULL_OFF && diag - 1 + src_i + 1 < query_length) ? src_i : INT32_MIN;
 
                 const int32_t max_j = std::max(del_j, std::max(sub_j, ins_j));
                 if (max_j >= -1) {
-                    next_wf_array.push_back_unchecked(internal::WavefrontArray::calc_vk(node_id, k),
-                                                      max_j);
+                    next_wf_array.push_back_unchecked(
+                        internal::WavefrontArray::calc_vd(node_id, diag), max_j);
                 }
             }
 
@@ -114,7 +114,7 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
 
     } else {
         // Linear gap cost: 3 separate source arrays — 3-pointer merge (fill overhead of scatter
-        // dominates for large k when density is low across 3 independent arrays)
+        // dominates for large diagonal range when density is low across 3 independent arrays)
         size_t wf_history_idx_d = internal::sub_mod(curr_idx + 1, _cost.gap, history_size);
         size_t wf_history_idx_s = internal::sub_mod(curr_idx + 1, _cost.mismatch, history_size);
         size_t wf_history_idx_i = internal::sub_mod(curr_idx + 1, _cost.gap, history_size);
@@ -133,33 +133,33 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                start_idx_i < wf_array_i.active_size()) {
             uint32_t node_id = UINT32_MAX;
             if (start_idx_d < wf_array_d.active_size()) {
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
-                                                wf_array_d.get_vk(start_idx_d)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vd(
+                                                wf_array_d.get_vd(start_idx_d)));
             }
             if (start_idx_s < wf_array_s.active_size()) {
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
-                                                wf_array_s.get_vk(start_idx_s)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vd(
+                                                wf_array_s.get_vd(start_idx_s)));
             }
             if (start_idx_i < wf_array_i.active_size()) {
-                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vk(
-                                                wf_array_i.get_vk(start_idx_i)));
+                node_id = std::min(node_id, internal::WavefrontArray::calc_node_id_from_vd(
+                                                wf_array_i.get_vd(start_idx_i)));
             }
 
             size_t end_idx_d = start_idx_d;
             while (end_idx_d < wf_array_d.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) ==
+                   internal::WavefrontArray::calc_node_id_from_vd(wf_array_d.get_vd(end_idx_d)) ==
                        node_id) {
                 ++end_idx_d;
             }
             size_t end_idx_s = start_idx_s;
             while (end_idx_s < wf_array_s.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_s.get_vk(end_idx_s)) ==
+                   internal::WavefrontArray::calc_node_id_from_vd(wf_array_s.get_vd(end_idx_s)) ==
                        node_id) {
                 ++end_idx_s;
             }
             size_t end_idx_i = start_idx_i;
             while (end_idx_i < wf_array_i.active_size() &&
-                   internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) ==
+                   internal::WavefrontArray::calc_node_id_from_vd(wf_array_i.get_vd(end_idx_i)) ==
                        node_id) {
                 ++end_idx_i;
             }
@@ -178,42 +178,43 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
             size_t idx_s = start_idx_s;
             size_t idx_i = start_idx_i;
 
-            int32_t k_d_raw =
+            int32_t diag_d_raw =
                 (idx_d < end_idx_d)
-                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                    ? internal::WavefrontArray::calc_d_from_vd(wf_array_d.get_vd(idx_d))
                     : 0;
-            int32_t k_s_raw =
+            int32_t diag_s_raw =
                 (idx_s < end_idx_s)
-                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s))
+                    ? internal::WavefrontArray::calc_d_from_vd(wf_array_s.get_vd(idx_s))
                     : 0;
-            int32_t k_i_raw =
+            int32_t diag_i_raw =
                 (idx_i < end_idx_i)
-                    ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                    ? internal::WavefrontArray::calc_d_from_vd(wf_array_i.get_vd(idx_i))
                     : 0;
 
             while (idx_d < end_idx_d || idx_s < end_idx_s || idx_i < end_idx_i) {
-                const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw - 1 : INT32_MAX;
-                const int32_t k_s_target = (idx_s < end_idx_s) ? k_s_raw : INT32_MAX;
-                const int32_t k_i_target = (idx_i < end_idx_i) ? k_i_raw + 1 : INT32_MAX;
+                const int32_t diag_d_target = (idx_d < end_idx_d) ? diag_d_raw - 1 : INT32_MAX;
+                const int32_t diag_s_target = (idx_s < end_idx_s) ? diag_s_raw : INT32_MAX;
+                const int32_t diag_i_target = (idx_i < end_idx_i) ? diag_i_raw + 1 : INT32_MAX;
 
-                const int32_t min_k = std::min(k_d_target, std::min(k_s_target, k_i_target));
+                const int32_t min_diag =
+                    std::min(diag_d_target, std::min(diag_s_target, diag_i_target));
                 int32_t max_j = INT32_MIN;
 
-                if (k_d_target == min_k) {
+                if (diag_d_target == min_diag) {
                     const int32_t st_offset = wf_array_d.get_offset(idx_d);
                     if (st_offset + 1 < label_len) {
                         max_j = st_offset + 1;
                     }
                     ++idx_d;
-                    k_d_raw =
+                    diag_d_raw =
                         (idx_d < end_idx_d)
-                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                            ? internal::WavefrontArray::calc_d_from_vd(wf_array_d.get_vd(idx_d))
                             : 0;
                 }
 
-                if (k_s_target == min_k) {
+                if (diag_s_target == min_diag) {
                     const int32_t st_offset = wf_array_s.get_offset(idx_s);
-                    const int32_t i_pos = k_s_raw + st_offset;
+                    const int32_t i_pos = diag_s_raw + st_offset;
                     if (i_pos + 1 < query_length && st_offset + 1 < label_len) {
                         const int32_t new_j = st_offset + 1;
                         if (new_j > max_j) {
@@ -221,28 +222,28 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                         }
                     }
                     ++idx_s;
-                    k_s_raw =
+                    diag_s_raw =
                         (idx_s < end_idx_s)
-                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_s.get_vk(idx_s))
+                            ? internal::WavefrontArray::calc_d_from_vd(wf_array_s.get_vd(idx_s))
                             : 0;
                 }
 
-                if (k_i_target == min_k) {
+                if (diag_i_target == min_diag) {
                     const int32_t st_offset = wf_array_i.get_offset(idx_i);
-                    const int32_t i_pos = k_i_raw + st_offset;
+                    const int32_t i_pos = diag_i_raw + st_offset;
                     if (i_pos + 1 < query_length && st_offset > max_j) {
                         max_j = st_offset;
                     }
                     ++idx_i;
-                    k_i_raw =
+                    diag_i_raw =
                         (idx_i < end_idx_i)
-                            ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                            ? internal::WavefrontArray::calc_d_from_vd(wf_array_i.get_vd(idx_i))
                             : 0;
                 }
 
                 if (max_j >= -1) {
                     next_wf_array.push_back_unchecked(
-                        internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                        internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
                 }
             }
 
@@ -316,36 +317,36 @@ void DTPatricia<Alphabet, CostType>::expand(
         uint32_t node_id = UINT32_MAX;
         if (start_idx_d < wf_array_d.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(start_idx_d));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_d.get_vd(start_idx_d));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_m < wf_array_m.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(start_idx_m));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_m.get_vd(start_idx_m));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_i < wf_array_i.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(start_idx_i));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_i.get_vd(start_idx_i));
             node_id = std::min(node_id, nid);
         }
 
         // node_idが等しい区間を見つける
         size_t end_idx_d = start_idx_d;
         while (end_idx_d < wf_array_d.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_d.get_vk(end_idx_d)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_d.get_vd(end_idx_d)) ==
                    node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
         while (end_idx_m < wf_array_m.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_m.get_vk(end_idx_m)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_m.get_vd(end_idx_m)) ==
                    node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
         while (end_idx_i < wf_array_i.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_i.get_vk(end_idx_i)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_i.get_vd(end_idx_i)) ==
                    node_id) {
             ++end_idx_i;
         }
@@ -363,24 +364,24 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t idx_d = start_idx_d;
         size_t idx_m = start_idx_m;
 
-        // Cache k values for D-stream merge
-        int32_t k_d_raw = (idx_d < end_idx_d)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+        // Cache diag values for D-stream merge
+        int32_t diag_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_d.get_vd(idx_d))
                               : 0;
-        int32_t k_m_d_raw = (idx_m < end_idx_m)
-                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+        int32_t diag_m_d_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_d_from_vd(wf_array_m.get_vd(idx_m))
                                 : 0;
 
         while (idx_d < end_idx_d || idx_m < end_idx_m) {
-            const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw - 1 : INT32_MAX;
-            const int32_t k_m_target = (idx_m < end_idx_m) ? k_m_d_raw - 1 : INT32_MAX;
+            const int32_t diag_d_target = (idx_d < end_idx_d) ? diag_d_raw - 1 : INT32_MAX;
+            const int32_t diag_m_target = (idx_m < end_idx_m) ? diag_m_d_raw - 1 : INT32_MAX;
 
-            const int32_t min_k = std::min(k_d_target, k_m_target);
+            const int32_t min_diag = std::min(diag_d_target, diag_m_target);
             int32_t max_j = INT32_MIN;
 
             // --- Deletion (D -> D) ---
-            if (k_d_target == min_k) {
-                const uint64_t st_vk = wf_array_d.get_vk(idx_d);
+            if (diag_d_target == min_diag) {
+                const uint64_t st_vd = wf_array_d.get_vd(idx_d);
                 const int32_t st_offset = wf_array_d.get_offset(idx_d);
                 // ケース1: ノード内での伸長
                 if (st_offset + 1 < label_len) {
@@ -389,31 +390,31 @@ void DTPatricia<Alphabet, CostType>::expand(
                 }
                 // ケース2: ノード境界での遷移 (追加)
                 else {
-                    const int32_t current_k = internal::WavefrontArray::calc_k_from_vk(st_vk);
-                    const int32_t next_k = current_k + st_offset;
+                    const int32_t current_diag = internal::WavefrontArray::calc_d_from_vd(st_vd);
+                    const int32_t next_diag = current_diag + st_offset;
 
                     const bool already_expanded =
-                        reached_d.dominated(node_id, current_k, st_offset, current_score);
+                        reached_d.dominated(node_id, current_diag, st_offset, current_score);
                     if (!already_expanded) {
-                        reached_d.record(node_id, current_k, st_offset, current_score);
+                        reached_d.record(node_id, current_diag, st_offset, current_score);
                         for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
                                 pending_d_buffer[code - 1].push_back_unchecked(
-                                    internal::WavefrontArray::calc_vk(child, next_k), 0);
+                                    internal::WavefrontArray::calc_vd(child, next_diag), 0);
                                 has_pending_d = true;
                             }
                         }
                     }
                 }
                 ++idx_d;
-                k_d_raw = (idx_d < end_idx_d)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_d.get_vk(idx_d))
+                diag_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_d.get_vd(idx_d))
                               : 0;
             }
 
             // --- Deletion (M -> D) ---
-            if (k_m_target == min_k) {
+            if (diag_m_target == min_diag) {
                 const int32_t st_offset = wf_array_m.get_offset(idx_m);
                 if (st_offset + 1 < label_len) {
                     const int32_t new_j = st_offset + 1;
@@ -422,54 +423,54 @@ void DTPatricia<Alphabet, CostType>::expand(
                     }
                 }
                 ++idx_m;
-                k_m_d_raw = (idx_m < end_idx_m)
-                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                diag_m_d_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_d_from_vd(wf_array_m.get_vd(idx_m))
                                 : 0;
             }
 
             // 3. 結果の登録
             if (max_j >= -1) {
                 next_wf_array_d.push_back_unchecked(
-                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                    internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
             }
         }
 
         idx_m = start_idx_m;
         size_t idx_i = start_idx_i;
 
-        // Cache k values for I-stream merge
-        int32_t k_m_i_raw = (idx_m < end_idx_m)
-                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+        // Cache diag values for I-stream merge
+        int32_t diag_m_i_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_d_from_vd(wf_array_m.get_vd(idx_m))
                                 : 0;
-        int32_t k_i_raw = (idx_i < end_idx_i)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+        int32_t diag_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_i.get_vd(idx_i))
                               : 0;
 
         while (idx_m < end_idx_m || idx_i < end_idx_i) {
-            const int32_t k_m_target = (idx_m < end_idx_m) ? k_m_i_raw + 1 : INT32_MAX;
-            const int32_t k_i_target = (idx_i < end_idx_i) ? k_i_raw + 1 : INT32_MAX;
+            const int32_t diag_m_target = (idx_m < end_idx_m) ? diag_m_i_raw + 1 : INT32_MAX;
+            const int32_t diag_i_target = (idx_i < end_idx_i) ? diag_i_raw + 1 : INT32_MAX;
 
-            const int32_t min_k = std::min(k_m_target, k_i_target);
+            const int32_t min_diag = std::min(diag_m_target, diag_i_target);
             int32_t max_j = INT32_MIN;
 
             // --- Insertion (M -> I) ---
-            if (k_m_target == min_k) {
+            if (diag_m_target == min_diag) {
                 const int32_t st_offset = wf_array_m.get_offset(idx_m);
-                const int32_t i_pos = k_m_i_raw + st_offset;
+                const int32_t i_pos = diag_m_i_raw + st_offset;
                 if (i_pos + 1 < query_length) {
                     const int32_t new_j = st_offset;
                     max_j = new_j;
                 }
                 ++idx_m;
-                k_m_i_raw = (idx_m < end_idx_m)
-                                ? internal::WavefrontArray::calc_k_from_vk(wf_array_m.get_vk(idx_m))
+                diag_m_i_raw = (idx_m < end_idx_m)
+                                ? internal::WavefrontArray::calc_d_from_vd(wf_array_m.get_vd(idx_m))
                                 : 0;
             }
 
             // --- Insertion (I -> I) ---
-            if (k_i_target == min_k) {
+            if (diag_i_target == min_diag) {
                 const int32_t st_offset = wf_array_i.get_offset(idx_i);
-                const int32_t i_pos = k_i_raw + st_offset;
+                const int32_t i_pos = diag_i_raw + st_offset;
                 if (i_pos + 1 < query_length) {
                     const int32_t new_j = st_offset;
                     if (new_j > max_j) {
@@ -477,15 +478,15 @@ void DTPatricia<Alphabet, CostType>::expand(
                     }
                 }
                 ++idx_i;
-                k_i_raw = (idx_i < end_idx_i)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_i.get_vk(idx_i))
+                diag_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_i.get_vd(idx_i))
                               : 0;
             }
 
             // 3. 結果の登録
             if (max_j >= -1) {
                 next_wf_array_i.push_back_unchecked(
-                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                    internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
             }
         }
 
@@ -498,7 +499,7 @@ void DTPatricia<Alphabet, CostType>::expand(
 
             for (int i = 0; i < tree_type::CODE_MAX; ++i) {
                 for (size_t j = 0; j < pending_d_buffer[i].active_size(); ++j) {
-                    pending_d.push_back_unchecked(pending_d_buffer[i].get_vk(j),
+                    pending_d.push_back_unchecked(pending_d_buffer[i].get_vd(j),
                                                   pending_d_buffer[i].get_offset(j));
                 }
                 pending_d_buffer[i].clear_logical_size();
@@ -518,37 +519,37 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t len1 = next_wf_array_d.active_size();
         size_t len2 = pending_d.active_size();
 
-        // 出力件数は高々 len1 + len2（vk 衝突時は 1 件に畳まれるのでこれが厳密な上限）
+        // 出力件数は高々 len1 + len2（vd 衝突時は 1 件に畳まれるのでこれが厳密な上限）
         merged_wf_array_d.reserve_capacity(len1 + len2);
 
         while (idx1 < len1 || idx2 < len2) {
             if (idx1 == len1) {
-                const uint64_t st_vk = pending_d.get_vk(idx2);
+                const uint64_t st_vd = pending_d.get_vd(idx2);
                 const int32_t st_offset = pending_d.get_offset(idx2);
-                merged_wf_array_d.push_back_unchecked(st_vk, st_offset);
+                merged_wf_array_d.push_back_unchecked(st_vd, st_offset);
                 ++idx2;
             } else if (idx2 == len2) {
-                const uint64_t st_vk = next_wf_array_d.get_vk(idx1);
+                const uint64_t st_vd = next_wf_array_d.get_vd(idx1);
                 const int32_t st_offset = next_wf_array_d.get_offset(idx1);
-                merged_wf_array_d.push_back_unchecked(st_vk, st_offset);
+                merged_wf_array_d.push_back_unchecked(st_vd, st_offset);
                 ++idx1;
             } else {
-                const uint64_t st1_vk = next_wf_array_d.get_vk(idx1);
+                const uint64_t st1_vd = next_wf_array_d.get_vd(idx1);
                 const int32_t st1_offset = next_wf_array_d.get_offset(idx1);
-                const uint64_t st2_vk = pending_d.get_vk(idx2);
+                const uint64_t st2_vd = pending_d.get_vd(idx2);
                 const int32_t st2_offset = pending_d.get_offset(idx2);
 
-                if (st1_vk < st2_vk) {
-                    merged_wf_array_d.push_back_unchecked(st1_vk, st1_offset);
+                if (st1_vd < st2_vd) {
+                    merged_wf_array_d.push_back_unchecked(st1_vd, st1_offset);
                     ++idx1;
-                } else if (st2_vk < st1_vk) {
-                    merged_wf_array_d.push_back_unchecked(st2_vk, st2_offset);
+                } else if (st2_vd < st1_vd) {
+                    merged_wf_array_d.push_back_unchecked(st2_vd, st2_offset);
                     ++idx2;
                 } else {
-                    // vk が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用
+                    // vd が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用
                     const int32_t winner_offset =
                         (st1_offset >= st2_offset) ? st1_offset : st2_offset;
-                    merged_wf_array_d.push_back_unchecked(st1_vk, winner_offset);
+                    merged_wf_array_d.push_back_unchecked(st1_vd, winner_offset);
                     ++idx1;
                     ++idx2;
                 }
@@ -587,35 +588,35 @@ void DTPatricia<Alphabet, CostType>::expand(
         uint32_t node_id = UINT32_MAX;
         if (start_idx_d < wf_array_dm.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(start_idx_d));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_dm.get_vd(start_idx_d));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_m < wf_array_mm.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(start_idx_m));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_mm.get_vd(start_idx_m));
             node_id = std::min(node_id, nid);
         }
         if (start_idx_i < wf_array_im.active_size()) {
             uint32_t nid =
-                internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(start_idx_i));
+                internal::WavefrontArray::calc_node_id_from_vd(wf_array_im.get_vd(start_idx_i));
             node_id = std::min(node_id, nid);
         }
 
         size_t end_idx_d = start_idx_d;
         while (end_idx_d < wf_array_dm.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_dm.get_vk(end_idx_d)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_dm.get_vd(end_idx_d)) ==
                    node_id) {
             ++end_idx_d;
         }
         size_t end_idx_m = start_idx_m;
         while (end_idx_m < wf_array_mm.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_mm.get_vk(end_idx_m)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_mm.get_vd(end_idx_m)) ==
                    node_id) {
             ++end_idx_m;
         }
         size_t end_idx_i = start_idx_i;
         while (end_idx_i < wf_array_im.active_size() &&
-               internal::WavefrontArray::calc_node_id_from_vk(wf_array_im.get_vk(end_idx_i)) ==
+               internal::WavefrontArray::calc_node_id_from_vd(wf_array_im.get_vd(end_idx_i)) ==
                    node_id) {
             ++end_idx_i;
         }
@@ -633,38 +634,39 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t idx_m = start_idx_m;
         size_t idx_i = start_idx_i;
 
-        // Cache k values for M-update pass
-        int32_t k_d_raw = (idx_d < end_idx_d)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d))
+        // Cache diag values for M-update pass
+        int32_t diag_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_dm.get_vd(idx_d))
                               : 0;
-        int32_t k_m_raw = (idx_m < end_idx_m)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m))
+        int32_t diag_m_raw = (idx_m < end_idx_m)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_mm.get_vd(idx_m))
                               : 0;
-        int32_t k_i_raw = (idx_i < end_idx_i)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i))
+        int32_t diag_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_im.get_vd(idx_i))
                               : 0;
 
         while (idx_d < end_idx_d || idx_m < end_idx_m || idx_i < end_idx_i) {
-            const int32_t k_d_target = (idx_d < end_idx_d) ? k_d_raw : INT32_MAX;
-            const int32_t k_m_target = (idx_m < end_idx_m) ? k_m_raw : INT32_MAX;
-            const int32_t k_i_target = (idx_i < end_idx_i) ? k_i_raw : INT32_MAX;
+            const int32_t diag_d_target = (idx_d < end_idx_d) ? diag_d_raw : INT32_MAX;
+            const int32_t diag_m_target = (idx_m < end_idx_m) ? diag_m_raw : INT32_MAX;
+            const int32_t diag_i_target = (idx_i < end_idx_i) ? diag_i_raw : INT32_MAX;
 
-            const int32_t min_k = std::min(k_d_target, std::min(k_m_target, k_i_target));
+            const int32_t min_diag =
+                std::min(diag_d_target, std::min(diag_m_target, diag_i_target));
             int32_t max_j = INT32_MIN;
 
-            if (k_d_target == min_k) {
+            if (diag_d_target == min_diag) {
                 const int32_t st_offset = wf_array_dm.get_offset(idx_d);
                 const int32_t new_j = st_offset;
                 max_j = new_j;
                 ++idx_d;
-                k_d_raw = (idx_d < end_idx_d)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_dm.get_vk(idx_d))
+                diag_d_raw = (idx_d < end_idx_d)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_dm.get_vd(idx_d))
                               : 0;
             }
 
-            if (k_m_target == min_k) {
+            if (diag_m_target == min_diag) {
                 const int32_t st_offset = wf_array_mm.get_offset(idx_m);
-                const int32_t i_pos = k_m_raw + st_offset;
+                const int32_t i_pos = diag_m_raw + st_offset;
                 if (i_pos + 1 < query_length && st_offset + 1 < label_len) {
                     const int32_t new_j = st_offset + 1;
                     if (new_j > max_j) {
@@ -672,26 +674,26 @@ void DTPatricia<Alphabet, CostType>::expand(
                     }
                 }
                 ++idx_m;
-                k_m_raw = (idx_m < end_idx_m)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_mm.get_vk(idx_m))
+                diag_m_raw = (idx_m < end_idx_m)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_mm.get_vd(idx_m))
                               : 0;
             }
 
-            if (k_i_target == min_k) {
+            if (diag_i_target == min_diag) {
                 const int32_t st_offset = wf_array_im.get_offset(idx_i);
                 const int32_t new_j = st_offset;
                 if (new_j > max_j) {
                     max_j = new_j;
                 }
                 ++idx_i;
-                k_i_raw = (idx_i < end_idx_i)
-                              ? internal::WavefrontArray::calc_k_from_vk(wf_array_im.get_vk(idx_i))
+                diag_i_raw = (idx_i < end_idx_i)
+                              ? internal::WavefrontArray::calc_d_from_vd(wf_array_im.get_vd(idx_i))
                               : 0;
             }
 
             if (max_j >= -1) {
                 next_wf_array_m.push_back_unchecked(
-                    internal::WavefrontArray::calc_vk(node_id, min_k), max_j);
+                    internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
             }
         }
         start_idx_d = end_idx_d;
