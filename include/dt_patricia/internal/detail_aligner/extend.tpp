@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include <dt_patricia/aligner.hpp>
 
 namespace dt_patricia {
@@ -10,7 +12,8 @@ void DTPatricia<Alphabet, CostType>::extend(
     const std::string_view query, internal::WavefrontArray &wf_array,
     internal::WavefrontArray &next_wf_array, internal::WavefrontArray &child_wf_array,
     std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &buffer,
-    const std::vector<uint32_t> &active_counts) const {
+    const std::vector<uint32_t> &active_counts, internal::ReachedOffsetTable &reached,
+    int32_t current_score) const {
     next_wf_array.clear_logical_size();
     child_wf_array.clear_logical_size();
 
@@ -117,9 +120,24 @@ void DTPatricia<Alphabet, CostType>::extend(
         }
         last_node_id = node_id;
 
-        // === ステップ3: Extension 処理 ===
+        // === ステップ3: 支配判定（入口版）===
         int32_t k = internal::WavefrontArray::calc_k_from_vk(current_vk);
         int32_t j = current_offset;
+
+        if constexpr (internal::DOMINANCE_AT_EXTEND_ENTRY) {
+            const bool dominated = reached.dominated(node_id, k, j, current_score);
+            if (dominated) {
+                if (wf_array_idx_increment) {
+                    ++wf_array_idx;
+                }
+                if (child_idx_increment) {
+                    ++child_idx;
+                }
+                continue;
+            }
+        }
+
+        // === ステップ4: Extension 処理 ===
         int32_t i = k + j;
 
         // Cache label lookup: only call get_label when node_id changes
@@ -138,10 +156,22 @@ void DTPatricia<Alphabet, CostType>::extend(
         i += lcp_len;
         j += lcp_len;
 
-        // === ステップ4: 子ノードへの遷移 or next_wf_array への追加 ===
+        if constexpr (internal::DOMINANCE_AT_EXTEND_ENTRY) {
+            reached.record(node_id, k, j, current_score);  // 伸長後の到達点で更新する
+        }
+
+        // === ステップ5: 子ノードへの遷移 or next_wf_array への追加 ===
         if (j + 1 == label_len) {
+            bool already_expanded = false;
+            if constexpr (!internal::DOMINANCE_AT_EXTEND_ENTRY) {
+                already_expanded = reached.dominated(node_id, k, j, current_score);
+                if (!already_expanded) {
+                    reached.record(node_id, k, j, current_score);
+                }
+            }
+
             // ノード終端に到達 → 子ノードをbufferに追加
-            for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
+            for (uint8_t code = 1; !already_expanded && code <= tree_type::CODE_MAX; ++code) {
                 uint32_t child = _patricia_tree.transition(node_id, code);
                 if (child != 0 && active_counts[child] > 0) {
                     int32_t new_k = (i + 1) - 0;
@@ -164,6 +194,11 @@ void DTPatricia<Alphabet, CostType>::extend(
         }
     }
     // ここではbufferは空になっている(空になっていないとwhileループが継続するため)
+#ifndef NDEBUG
+    for (const auto &buf : buffer) {
+        assert(buf.empty());
+    }
+#endif
     wf_array.swap(next_wf_array);
 }
 

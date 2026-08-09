@@ -83,6 +83,30 @@ void PatriciaTree<Alphabet>::build(const std::vector<std::string> &input_data,
     // 3. 部分木の長さの最小/最大の事前計算
     // ===========================================================
     compute_subtree_length_bounds();
+    compute_parent_path_lengths();
+}
+
+// 根から各ノードの親までのパス長。ノード ID は BFS 順で親が必ず子より小さいので、
+// 昇順の 1 パスで確定する。
+template <AlphabetPolicy Alphabet>
+void PatriciaTree<Alphabet>::compute_parent_path_lengths() {
+    const uint32_t num_nodes = static_cast<uint32_t>(_base.size());
+    _parent_path_len.assign(num_nodes, 0);
+    std::vector<uint32_t> path_len(num_nodes, 0);
+
+    const uint32_t root = root_id();
+    if (num_nodes <= root) {
+        return;
+    }
+    path_len[root] = _label_len[root];
+    for (uint32_t v = root + 1; v < num_nodes; ++v) {
+        const uint32_t parent = _check[v];
+        if (parent == 0) {
+            continue;
+        }
+        _parent_path_len[v] = path_len[parent];
+        path_len[v] = path_len[parent] + _label_len[v];
+    }
 }
 
 template <AlphabetPolicy Alphabet>

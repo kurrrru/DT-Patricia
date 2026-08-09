@@ -14,6 +14,7 @@
 #include <dt_patricia/alignment_result.hpp>
 #include <dt_patricia/internal/lcp.hpp>
 #include <dt_patricia/internal/mod_arithmetic.hpp>
+#include <dt_patricia/internal/reached_offset_table.hpp>
 #include <dt_patricia/internal/wavefront_array.hpp>
 #include <dt_patricia/patricia_tree.hpp>
 #include <dt_patricia/policy/cost.hpp>
@@ -108,7 +109,8 @@ class DTPatricia {
     void extend(const std::string_view query, internal::WavefrontArray &wf_array,
                 internal::WavefrontArray &next_wf_array, internal::WavefrontArray &child_wf_array,
                 std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &buffer,
-                const std::vector<uint32_t> &active_counts) const;
+                const std::vector<uint32_t> &active_counts, internal::ReachedOffsetTable &reached,
+                int32_t current_score) const;
 
     void expand(const std::string_view query, std::vector<internal::WavefrontArray> &wf_history,
                 internal::WavefrontArray &next_wf_array, int32_t curr_idx, size_t history_size,
@@ -125,7 +127,8 @@ class DTPatricia {
         const std::vector<uint32_t> &active_counts,
         std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
         internal::WavefrontArray &pending_d, internal::WavefrontArray &merged_wf_array_d,
-        std::vector<int32_t> &expand_scratch) const
+        std::vector<int32_t> &expand_scratch, internal::ReachedOffsetTable &reached_d,
+        int32_t current_score) const
         requires(!CostType::is_linear);
 };
 

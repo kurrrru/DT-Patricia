@@ -45,8 +45,13 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     std::array<internal::WavefrontArray, tree_type::CODE_MAX> buffer;
     std::vector<int32_t> expand_scratch;
 
+    // 再処理の抑止に使う表。確保がノード数に比例するので、探索が育って元が取れる見込みが立つまで有効化しない。
+    internal::ReachedOffsetTable reached;
+    size_t states_seen = 0;
+    const size_t reached_enable_threshold = _patricia_tree.node_count();
+
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
-    uint32_t root = _patricia_tree.root_id();
+    const uint32_t root = _patricia_tree.root_id();
     wf_history[0].push_back_state(root, 0, -1);
 
     int32_t current_score = 0;  // 現在の編集距離
@@ -69,8 +74,16 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
             }
         }
 
+        if (!reached.enabled()) {
+            states_seen += curr_wf.active_size();
+            if (states_seen > reached_enable_threshold) {
+                reached.enable(_patricia_tree.get_parent_path_lengths());
+            }
+        }
+
         // Algorithm 2: DT-Patricia Extend
-        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts);
+        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, active_counts, reached,
+               current_score);
 
         if (upper_bound >= 0) {
             prune_by_upper_bound(curr_wf, subtree_max_lengths, subtree_min_lengths, query_length,
@@ -180,8 +193,15 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     internal::WavefrontArray merged_wf_array_d;
     std::vector<int32_t> expand_scratch;
 
+    // D 層の子生成（expand の pending_d 経由）の重複を潰す表。
+    internal::ReachedOffsetTable reached_d;
+    // M 層の子生成（extend 経由）の重複を潰す表。
+    internal::ReachedOffsetTable reached;
+    size_t states_seen = 0;
+    const size_t reached_enable_threshold = _patricia_tree.node_count();
+
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
-    uint32_t root = _patricia_tree.root_id();
+    const uint32_t root = _patricia_tree.root_id();
     wf_history_m[0].push_back_state(root, 0, -1);
 
     int32_t current_score = 0;  // 現在の編集距離
@@ -219,8 +239,19 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
             }
         }
 
+        // reachedとreached_dは必ず同時に有効化される
+        assert(reached.enabled() == reached_d.enabled());
+        if (!reached_d.enabled()) {
+            states_seen += curr_wf_m.active_size();
+            if (states_seen > reached_enable_threshold) {
+                reached_d.enable(_patricia_tree.get_parent_path_lengths());
+                reached.enable(_patricia_tree.get_parent_path_lengths());
+            }
+        }
+
         // Algorithm 2: DT-Patricia Extend
-        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts);
+        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, active_counts,
+               reached, current_score);
         if (upper_bound >= 0) {
             prune_by_upper_bound<true>(next_wf_array_d, curr_wf_m, next_wf_array_i,
                                        _patricia_tree.get_subtree_max_lengths(),
@@ -273,7 +304,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i, next_wf_array_d,
                next_wf_array_m, next_wf_array_i, curr_idx, history_size, active_counts, buffer,
-               pending_d, merged_wf_array_d, expand_scratch);
+               pending_d, merged_wf_array_d, expand_scratch, reached_d, current_score);
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(
