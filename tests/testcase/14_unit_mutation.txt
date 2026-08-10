@@ -1,5 +1,5 @@
 # UnitCost: 1本の基準配列 (長さ100, seed=42) に sub/ins/del を繰り返して派生配列を生成
-# 変異数: 0(完全一致)〜18回。PatriciaWFA が変異数に依存しない正確な編集距離を返すかを検証
+# 変異数: 0(完全一致)〜18回。DT-Patricia が変異数に依存しない正確な編集距離を返すかを検証
 COST UnitCost
 
 TARGETS
