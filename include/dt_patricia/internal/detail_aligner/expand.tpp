@@ -16,7 +16,8 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                                             internal::WavefrontArray &next_wf_array,
                                             int32_t curr_idx, size_t history_size,
                                             const std::vector<uint32_t> &active_counts,
-                                            std::vector<int32_t> &expand_scratch) const
+                                            std::vector<int32_t> &expand_scratch,
+                                            std::vector<int32_t> &expand_maxj) const
     requires(CostType::is_linear)
 {
     next_wf_array.clear_logical_size();
@@ -83,28 +84,54 @@ void DTPatricia<Alphabet, CostType>::expand(const std::string_view query,
                 }
             }
 
-            // Dense loop over output range [diag_lo-1, diag_hi+1]
-            for (int32_t diag = diag_lo - 1; diag <= diag_hi + 1; ++diag) {
-                const int32_t s = diag - diag_base;  // s in [1, diag_hi-diag_lo+3]
+            // 出力範囲 [diag_lo-1, diag_hi+1] を t = diag - (diag_lo-1) で 0 始まりに直すと
+            //   s = t + 1 なので、読む位置は expand_scratch[t], [t+1], [t+2]
+            // となり、クエリ長との比較も
+            //   diag + src_s + 1 < query_length     <=>  t + src_s < query_length - diag_lo
+            //   diag - 1 + src_i + 1 < query_length <=>  t + src_i < query_length - diag_lo + 1
+            // と t の式に書き直せる。
+            const int32_t out_count = diag_hi - diag_lo + 3;
+            const int32_t query_slack = query_length - diag_lo;
 
-                const int32_t src_d = expand_scratch[s + 1];
-                const int32_t del_j =
-                    (src_d > NULL_OFF && src_d + 1 < label_len) ? src_d + 1 : INT32_MIN;
+            if (static_cast<int32_t>(expand_maxj.size()) < out_count) {
+                expand_maxj.resize(static_cast<size_t>(out_count));
+            }
 
-                const int32_t src_s = expand_scratch[s];
-                const int32_t sub_j =
-                    (src_s > NULL_OFF && src_s + 1 < label_len && diag + src_s + 1 < query_length)
-                        ? src_s + 1
-                        : INT32_MIN;
+            // 段階 1: 対角線ごとの max_j を求める。分岐も早期脱出もない要素ごとの計算なので、
+            // コンパイラがベクトル化できる。条件付きの書き出しを混ぜるとこれができなくなる。
+            {
+                const int32_t *src = expand_scratch.data();
+                int32_t *out = expand_maxj.data();
+                for (int32_t t = 0; t < out_count; ++t) {
+                    const int32_t src_i = src[t];
+                    const int32_t src_s = src[t + 1];
+                    const int32_t src_d = src[t + 2];
 
-                const int32_t src_i = expand_scratch[s - 1];
-                const int32_t ins_j =
-                    (src_i > NULL_OFF && diag - 1 + src_i + 1 < query_length) ? src_i : INT32_MIN;
+                    const int32_t del_j =
+                        (src_d > NULL_OFF && src_d + 1 < label_len) ? src_d + 1 : INT32_MIN;
+                    const int32_t sub_j =
+                        (src_s > NULL_OFF && src_s + 1 < label_len && t + src_s < query_slack)
+                            ? src_s + 1
+                            : INT32_MIN;
+                    const int32_t ins_j =
+                        (src_i > NULL_OFF && t + src_i < query_slack + 1) ? src_i : INT32_MIN;
 
-                const int32_t max_j = std::max(del_j, std::max(sub_j, ins_j));
-                if (max_j >= -1) {
-                    next_wf_array.push_back_unchecked(
-                        internal::WavefrontArray::calc_vd(node_id, diag), max_j);
+                    out[t] = std::max(del_j, std::max(sub_j, ins_j));
+                }
+            }
+
+            // 段階 2: 残るものだけを書き出す。連続する対角線の vd は下位 32 ビットが 1 ずつ
+            // 増えるだけなので、先頭の vd に t を足せばよい。
+            {
+                const uint64_t vd_base = internal::WavefrontArray::calc_vd(node_id, diag_lo - 1);
+                const int32_t *out = expand_maxj.data();
+                for (int32_t t = 0; t < out_count; ++t) {
+                    if (out[t] >= -1) {
+                        assert(vd_base + static_cast<uint64_t>(t) ==
+                               internal::WavefrontArray::calc_vd(node_id, diag_lo - 1 + t));
+                        next_wf_array.push_back_unchecked(vd_base + static_cast<uint64_t>(t),
+                                                          out[t]);
+                    }
                 }
             }
 

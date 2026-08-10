@@ -112,10 +112,12 @@ class DTPatricia {
                 const std::vector<uint32_t> &active_counts, internal::ReachedOffsetTable &reached,
                 int32_t current_score) const;
 
+    // expand_maxj は UnitCost の密経路で、出力対角線ごとの max_j を一旦受けるための作業領域。
+    // 計算と書き出しを分けることで、計算側を分岐のない要素ごとのループにしている。
     void expand(const std::string_view query, std::vector<internal::WavefrontArray> &wf_history,
                 internal::WavefrontArray &next_wf_array, int32_t curr_idx, size_t history_size,
-                const std::vector<uint32_t> &active_counts,
-                std::vector<int32_t> &expand_scratch) const
+                const std::vector<uint32_t> &active_counts, std::vector<int32_t> &expand_scratch,
+                std::vector<int32_t> &expand_maxj) const
         requires(CostType::is_linear);
 
     void expand(

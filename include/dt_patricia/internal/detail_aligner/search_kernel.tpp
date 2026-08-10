@@ -46,6 +46,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     internal::WavefrontArray child_wf_array;
     std::array<internal::WavefrontArray, tree_type::CODE_MAX> buffer;
     std::vector<int32_t> expand_scratch;
+    std::vector<int32_t> expand_maxj;
 
     // 再処理の抑止に使う表。確保がノード数に比例するので、探索が育って元が取れる見込みが立つまで有効化しない。
     internal::ReachedOffsetTable reached;
@@ -149,7 +150,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 
         // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, active_counts,
-               expand_scratch);
+               expand_scratch, expand_maxj);
 
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
