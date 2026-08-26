@@ -9,6 +9,7 @@ tests/testcase_random/*
 *.d
 *.md
 !README.md
+!docs/*.md
 
 # Compiled Object files
 *.slo
