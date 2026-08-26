@@ -1,9 +1,6 @@
 [![tests](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml)
 [![format](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml)
 
-> [!WARNING]
-> **This repository is a work in progress.** The interfaces of its functions and classes, the internal implementation, and the directory layout may change without notice.
-
 # DT-Patricia
 
 **DT-Patricia** (*Diagonal Transition on Patricia Tree*) is a header-only C++20 library that computes the exact edit distance between a single query sequence and every string in a dictionary (a set of strings).
@@ -122,6 +119,14 @@ cmake --build --preset tests -j  # build
 ctest --preset tests -j          # run (--output-on-failure is built into the preset)
 ```
 
+## Documentation
+
+More detailed documentation lives in [`docs/`](docs/).
+
+- [Getting started](docs/10_getting_started.md) — requirements, the four ways to add the library to a project, and a walk through your first query. Read this one top to bottom.
+- [API reference](docs/20_api_reference.md) — the exact signature and behaviour of everything in the public interface, plus the result semantics, thread safety, and exceptions.
+- [Extending DT-Patricia](docs/21_extending.md) — the normative requirements for writing your own `AlphabetPolicy` or cost policy, with worked examples.
+
 ## Input constraints
 
 - Strings must not contain `'\0'` (code 0 is reserved as the terminator).
@@ -141,8 +146,8 @@ DT-Patricia/
 │   ├── policy/                     # alphabets and cost models
 │   ├── internal/                   # internal implementation
 │   └── debug/                      # debugging helpers
+├── docs/                           # detailed documentation
 ├── examples/                       # usage examples
 ├── tests/                          # test driver, test cases, generator script
-├── cmake/                          # CMake package files used on install
-└── external/                       # place for external dependencies (currently empty)
+└── cmake/                          # CMake package files used on install
 ```
