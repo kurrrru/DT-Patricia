@@ -1,9 +1,6 @@
 [![tests](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/tests.yml)
 [![format](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml/badge.svg)](https://github.com/kurrrru/DT-Patricia/actions/workflows/format.yml)
 
-> [!NOTE]
-> DT-Patricia has not had a versioned release yet. The public API is not expected to change, but it has not been formally frozen either, and the internal implementation and performance characteristics may change at any time.
-
 # DT-Patricia
 
 **DT-Patricia** (*Diagonal Transition on Patricia Tree*) is a header-only C++20 library that computes the exact edit distance between a single query sequence and every string in a dictionary (a set of strings).
