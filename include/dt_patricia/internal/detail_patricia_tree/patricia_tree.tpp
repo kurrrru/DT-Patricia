@@ -269,14 +269,14 @@ void msd_radix_sort_recursive(std::vector<uint32_t> &indices,
                               size_t depth) {
     using Tree = PatriciaTree<Alphabet>;
 
-    constexpr size_t INSERTION_SORT_THRESHOLD = 16;
+    constexpr size_t COMPARISON_SORT_THRESHOLD = 16;
     constexpr size_t BUCKET_SIZE = Tree::BUCKET_SIZE;
 
     // 最大バケットはこの while ループで [start, end, depth] を更新して反復処理し、
     // 再帰するのは「最大以外」のバケットだけにする。
     while (true) {
         // --- 小区間は比較ソートに委譲 ---
-        if (end - start <= INSERTION_SORT_THRESHOLD) {
+        if (end - start <= COMPARISON_SORT_THRESHOLD) {
             std::sort(indices.begin() + start, indices.begin() + end, [&](uint32_t a, uint32_t b) {
                 const std::string &sa = input_data[a];
                 const std::string &sb = input_data[b];
