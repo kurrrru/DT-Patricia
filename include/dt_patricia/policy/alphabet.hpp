@@ -30,6 +30,11 @@ consteval bool validate_alphabet_policy() {
     if (CHAR_TO_CODE['\0'] != Alphabet::CODE_TERM) {
         return false;
     }
+    for (int ch = 1; ch < 256; ++ch) {
+        if (CHAR_TO_CODE[ch] == Alphabet::CODE_TERM) {
+            return false;
+        }
+    }
     for (uint8_t code : CHAR_TO_CODE) {
         if (code > Alphabet::CODE_MAX) {
             return false;
