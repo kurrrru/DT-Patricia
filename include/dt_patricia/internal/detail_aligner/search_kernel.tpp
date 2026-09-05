@@ -13,6 +13,9 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     const std::string &query, StopPredicate stop_predicate, int upper_bound) const
     requires(CostType::is_linear)
 {
+#ifndef NDEBUG
+    internal::assert_no_null_bytes(query);
+#endif
     std::vector<AlignmentResult> results;
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();
@@ -174,6 +177,9 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     const std::string &query, StopPredicate stop_predicate, int upper_bound) const
     requires(!CostType::is_linear)
 {
+#ifndef NDEBUG
+    internal::assert_no_null_bytes(query);
+#endif
     std::vector<AlignmentResult> results;
 
     std::vector<uint32_t> active_counts = _patricia_tree.get_subtree_counts();

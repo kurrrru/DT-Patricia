@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -323,5 +324,16 @@ struct ProteinAlphabet {
 static_assert(AlphabetPolicy<DnaAlphabet>);
 static_assert(AlphabetPolicy<RyAlphabet>);
 static_assert(AlphabetPolicy<ProteinAlphabet>);
+
+namespace internal {
+inline void assert_no_null_bytes(const std::string &s) noexcept {
+#ifdef NDEBUG
+    (void)s;
+#else
+    assert(s.find('\0') == std::string::npos && "String contains null bytes");
+#endif
+}
+
+}  // namespace internal
 
 }  // namespace dt_patricia

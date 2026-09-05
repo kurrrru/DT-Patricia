@@ -8,6 +8,9 @@ namespace dt_patricia::debug {
 
 template <AlphabetPolicy Alphabet>
 std::span<const uint32_t> exact_match(const PatriciaTree<Alphabet> &tree, std::string_view query) {
+#ifndef NDEBUG
+    internal::assert_no_null_bytes(query);
+#endif
     uint32_t current_node = tree.root_id();
     size_t query_pos = 0;
 
