@@ -113,7 +113,7 @@ def rand_seq(rng, chars, length):
 
 # ------------------------------------------------------------
 # TESTS セクション（実行する操作）を生成する。
-#   ed_to_all は必ず含める。ed_within_k / ed_kth_smallest は k を散らして加える。
+#   ed_to_all は必ず含める。ed_within_k は k を、ed_pth_smallest は p を散らして加える。
 #   op 数はランタイム抑制のため 5 個までに制限する。
 # ------------------------------------------------------------
 def gen_ops(rng, num_targets, max_len):
@@ -123,11 +123,11 @@ def gen_ops(rng, num_targets, max_len):
     for k in sorted(within_ks):
         if rng.random() < 0.6:
             ops.append(f"ed_within_k {k}")
-    # kth_smallest: 1、中間、件数ちょうど、件数超過（クランプ確認）
-    kth_ks = {1, max(1, num_targets // 2), num_targets, num_targets + rng.randint(1, 2)}
-    for k in sorted(kth_ks):
+    # pth_smallest: 1、中間、件数ちょうど、件数超過（クランプ確認）
+    pth_ps = {1, max(1, num_targets // 2), num_targets, num_targets + rng.randint(1, 2)}
+    for p in sorted(pth_ps):
         if rng.random() < 0.5:
-            ops.append(f"ed_kth_smallest {k}")
+            ops.append(f"ed_pth_smallest {p}")
 
     rng.shuffle(ops)
     ops = ops[:4]  # ed_to_all を足して最大 5 個

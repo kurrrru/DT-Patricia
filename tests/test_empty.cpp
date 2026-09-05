@@ -62,18 +62,18 @@ class BruteForceChecker {
         return results;
     }
 
-    // Return all targets with a score <= the k-th smallest score, ordered by
+    // Return all targets with a score <= the p-th smallest score, ordered by
     // (score ASC, string_id ASC) (ties at the boundary score are included)
-    std::vector<dt_patricia::AlignmentResult> ed_kth_smallest(const std::string &query,
-                                                              size_t k) const {
-        if (k == 0) {
+    std::vector<dt_patricia::AlignmentResult> ed_pth_smallest(const std::string &query,
+                                                              size_t p) const {
+        if (p == 0) {
             return {};
         }
         auto all = ed_to_all(query);
-        if (k >= all.size()) {
+        if (p >= all.size()) {
             return all;
         }
-        uint32_t threshold = all[k - 1].score;
+        uint32_t threshold = all[p - 1].score;
         auto it = std::upper_bound(
             all.begin(), all.end(), threshold,
             [](uint32_t val, const dt_patricia::AlignmentResult &r) { return val < r.score; });
@@ -192,7 +192,7 @@ static std::vector<TestCase> make_testcases(void) {
                          1,
                          {""},  // targets
                          {""},  // queries
-                         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+                         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
     testcases.push_back({"Target has three empty strings, query also has a single empty string",
                          "DnaAlphabet",
                          "UnitCost",
@@ -201,7 +201,7 @@ static std::vector<TestCase> make_testcases(void) {
                          1,
                          {"", "", ""},  // targets
                          {""},          // queries
-                         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+                         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
     testcases.push_back(
         {"Target has two empty strings and one non-empty string, query also has a single empty "
          "string",
@@ -212,7 +212,7 @@ static std::vector<TestCase> make_testcases(void) {
          1,
          {"", "", "a"},  // targets
          {""},           // queries
-         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
     testcases.push_back(
         {"Target has three empty strings, query also has four single non-empty string",
          "DnaAlphabet",
@@ -222,7 +222,7 @@ static std::vector<TestCase> make_testcases(void) {
          1,
          {"", "", ""},          // targets
          {"a", "c", "g", "t"},  // queries
-         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
     testcases.push_back(
         {"Target has a single empty string, query also has a single empty string (LinearGapCost)",
          "DnaAlphabet",
@@ -232,7 +232,7 @@ static std::vector<TestCase> make_testcases(void) {
          1,
          {""},  // targets
          {""},  // queries
-         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
     testcases.push_back(
         {"Target has a single empty string, query also has a single empty string (AffineGapCost)",
          "DnaAlphabet",
@@ -242,7 +242,7 @@ static std::vector<TestCase> make_testcases(void) {
          1,
          {""},  // targets
          {""},  // queries
-         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_kth_smallest", 1}}});
+         {{"ed_to_all"}, {"ed_within_k", 2}, {"ed_pth_smallest", 1}}});
 
     return testcases;
 }
@@ -315,9 +315,9 @@ static bool run_with_cost(const TestCase &tc, CostType cost) {
             } else if (op.name == "ed_within_k") {
                 expected = brute.ed_within_k(query, op.k);
                 actual = dtp_aligner.ed_within_k(query, op.k);
-            } else if (op.name == "ed_kth_smallest") {
-                expected = brute.ed_kth_smallest(query, static_cast<size_t>(op.k));
-                actual = dtp_aligner.ed_kth_smallest(query, static_cast<size_t>(op.k));
+            } else if (op.name == "ed_pth_smallest") {
+                expected = brute.ed_pth_smallest(query, static_cast<size_t>(op.k));
+                actual = dtp_aligner.ed_pth_smallest(query, static_cast<size_t>(op.k));
             } else {
                 std::cout << "    Unknown op: " << op.name << "\n";
                 all_passed = false;

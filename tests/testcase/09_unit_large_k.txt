@@ -1,4 +1,4 @@
-# UnitCost: k がターゲット数より大きいケース (ed_kth_smallest の境界)
+# UnitCost: k がターゲット数より大きいケース (ed_pth_smallest の境界)
 # k >= len(targets) のとき全件返ること
 COST UnitCost
 
@@ -14,7 +14,7 @@ AAAA
 ACGT
 
 TESTS
-ed_kth_smallest 5
-ed_kth_smallest 10
+ed_pth_smallest 5
+ed_pth_smallest 10
 ed_within_k 100
 ed_to_all

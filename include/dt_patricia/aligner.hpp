@@ -68,11 +68,11 @@ class DTPatricia {
             k);
     }
 
-    std::vector<AlignmentResult> ed_kth_smallest(const std::string &query, size_t k) const {
-        if (k > _patricia_tree.string_count()) {
-            k = _patricia_tree.string_count();
+    std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) const {
+        if (p > _patricia_tree.string_count()) {
+            p = _patricia_tree.string_count();
         }
-        return search_kernel(query, [k](int, const auto &r) { return r.size() >= k; }, -1);
+        return search_kernel(query, [p](int, const auto &r) { return r.size() >= p; }, -1);
     }
 
     template <typename StopPredicate>

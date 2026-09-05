@@ -27,6 +27,6 @@ ed_within_k 6
 ed_within_k 20
 ed_within_k 24
 ed_within_k 10
-ed_kth_smallest 3
-ed_kth_smallest 6
+ed_pth_smallest 3
+ed_pth_smallest 6
 ed_to_all
