@@ -23,6 +23,6 @@ GTAC
 TESTS
 ed_within_k 2
 ed_within_k 4
-ed_kth_smallest 2
-ed_kth_smallest 5
+ed_pth_smallest 2
+ed_pth_smallest 5
 ed_to_all

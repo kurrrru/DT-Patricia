@@ -231,14 +231,14 @@ small `k` makes the search much faster.
 auto near = aligner.ed_within_k("ACGT", 2);
 ```
 
-`ed_kth_smallest(query, k)` — the `k` nearest entries. Because the search finds every entry
+`ed_pth_smallest(query, p)` — the `p` nearest entries. Because the search finds every entry
 at a given distance before it can know whether it has enough, **the result may contain more
-than `k` entries when there are ties at the cut-off distance**. That is deliberate:
-truncating to exactly `k` would mean picking arbitrarily among entries that are equally
-good. Truncate yourself if your application needs exactly `k`.
+than `p` entries when there are ties at the cut-off distance**. That is deliberate:
+truncating to exactly `p` would mean picking arbitrarily among entries that are equally
+good. Truncate yourself if your application needs exactly `p`.
 
 ```cpp
-auto top3 = aligner.ed_kth_smallest("ACGT", 3);
+auto top3 = aligner.ed_pth_smallest("ACGT", 3);
 ```
 
 If you need a stopping rule these three do not express — a time budget, a combination of a

@@ -198,10 +198,10 @@ auto all = aligner.ed_to_all("ACGT");
 auto near = aligner.ed_within_k("ACGT", 2);
 ```
 
-`ed_kth_smallest(query, k)` — 最も近い `k` 件。探索はある距離のエントリをすべて見つけてからでないと打ち切ってよいか判断できないため、**打ち切り距離に同点があると結果が `k` 件を超えることがある**。これは意図的な仕様である。ちょうど `k` 件に切り詰めると、等しく良い候補の中から恣意的に選ぶことになってしまう。厳密に `k` 件が必要なら、呼び出し側で切り詰めること。
+`ed_pth_smallest(query, p)` — 最も近い `p` 件。探索はある距離のエントリをすべて見つけてからでないと打ち切ってよいか判断できないため、**打ち切り距離に同点があると結果が `p` 件を超えることがある**。これは意図的な仕様である。ちょうど `p` 件に切り詰めると、等しく良い候補の中から恣意的に選ぶことになってしまう。厳密に `p` 件が必要なら、呼び出し側で切り詰めること。
 
 ```cpp
-auto top3 = aligner.ed_kth_smallest("ACGT", 3);
+auto top3 = aligner.ed_pth_smallest("ACGT", 3);
 ```
 
 この 3 つでは表現できない停止規則——時間制限、閾値と件数の組み合わせ、それまでに集まった結果に対する条件など——が必要な場合は、`search_kernel` を独自の述語とともに直接呼ぶ。契約については [`search_kernel`](20_api_reference.ja.md#search_kernel) を、実例については [`examples/basic_example.cpp`](../examples/basic_example.cpp) の 6 節と 7 節を参照。

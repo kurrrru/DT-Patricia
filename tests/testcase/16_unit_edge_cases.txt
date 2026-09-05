@@ -24,6 +24,6 @@ TESTS
 ed_within_k 0
 ed_within_k 1
 ed_within_k 3
-ed_kth_smallest 1
-ed_kth_smallest 5
+ed_pth_smallest 1
+ed_pth_smallest 5
 ed_to_all

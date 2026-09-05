@@ -22,6 +22,6 @@ MKTAYIAKQR
 TESTS
 ed_within_k 1
 ed_within_k 3
-ed_kth_smallest 2
-ed_kth_smallest 4
+ed_pth_smallest 2
+ed_pth_smallest 4
 ed_to_all

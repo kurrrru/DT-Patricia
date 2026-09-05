@@ -6,7 +6,7 @@
 //   The usage is always the same 3 steps:
 //     1) Build a PatriciaTree<Alphabet> from a std::vector<std::string>
 //     2) Pass the tree (and a cost) to DTPatricia<Alphabet, Cost>
-//     3) Query with ed_to_all / ed_within_k / ed_kth_smallest,
+//     3) Query with ed_to_all / ed_within_k / ed_pth_smallest,
 //        or call search_kernel directly with your own stop predicate
 
 #include <chrono>
@@ -112,20 +112,20 @@ int main() {
 
     // ============================================================
     // 5) Protein alphabet + UnitCost
-    //    Handles the 20 amino acids. ed_kth_smallest collects up to top_k
-    //    entries in ascending order of distance (nearest top-k). Note that
-    //    when there are ties it may return more than top_k entries (see the
+    //    Handles the 20 amino acids. ed_pth_smallest collects up to top_p
+    //    entries in ascending order of distance (nearest top-p). Note that
+    //    when there are ties it may return more than top_p entries (see the
     //    explanation of ties in section 7).
     // ============================================================
     {
-        print_header("Protein / UnitCost / ed_kth_smallest");
+        print_header("Protein / UnitCost / ed_pth_smallest");
         std::vector<std::string> targets = {"MKVLAA", "MKVLAG", "MKILAA", "ACDEFG", "MKVL"};
         PatriciaTree<ProteinAlphabet> tree(targets);
         DTPatricia<ProteinAlphabet, UnitCost> aligner(tree);
 
         const std::string query = "MKVLAA";
-        const std::size_t top_k = 3;  // the nearest k entries
-        print_results(targets, query, aligner.ed_kth_smallest(query, top_k));
+        const std::size_t top_p = 3;  // the nearest p entries
+        print_results(targets, query, aligner.ed_pth_smallest(query, top_p));
     }
 
     // ============================================================

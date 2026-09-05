@@ -22,6 +22,6 @@ TGATCCGCGGATGAGCTGACACCTGCCGTGGGAGAACTCTTAAATGATTAGGGCTTTTTCGAGTTGG
 TESTS
 ed_within_k 5
 ed_within_k 12
-ed_kth_smallest 3
-ed_kth_smallest 5
+ed_pth_smallest 3
+ed_pth_smallest 5
 ed_to_all

@@ -22,5 +22,5 @@ AACGT
 TESTS
 ed_within_k 2
 ed_within_k 3
-ed_kth_smallest 3
+ed_pth_smallest 3
 ed_to_all

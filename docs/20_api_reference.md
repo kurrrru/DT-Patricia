@@ -257,18 +257,18 @@ string within the threshold is ever dropped. Smaller `k` therefore means a faste
 
 Because a distance level is always completed before the stop condition is evaluated, `k == 0` returns the exact matches, and any `k < 0` behaves the same as `k == 0` rather than returning nothing.
 
-### `ed_kth_smallest`
+### `ed_pth_smallest`
 
 ```cpp
-std::vector<AlignmentResult> ed_kth_smallest(const std::string &query, size_t k) const;
+std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) const;
 ```
 
-Returns the `k` nearest dictionary strings. `k` is clamped to `string_count()`. For the same reason as above, `k == 0` returns the exact matches rather than nothing.
+Returns the `p` nearest dictionary strings. `p` is clamped to `string_count()`. For the same reason as above, `p == 0` returns the exact matches rather than nothing.
 
-**The result may contain more than `k` entries.** The search completes each distance level
+**The result may contain more than `p` entries.** The search completes each distance level
 before it can test whether enough results have been collected, so if several strings tie at
 the cut-off distance, all of them are returned. This avoids choosing arbitrarily between
-equally good candidates. Truncate the result yourself if you need exactly `k`.
+equally good candidates. Truncate the result yourself if you need exactly `p`.
 
 No pruning bound is used, because the cut-off distance is not known in advance.
 
