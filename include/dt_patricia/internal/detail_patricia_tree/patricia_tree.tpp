@@ -25,6 +25,12 @@ void msd_radix_sort_recursive(std::vector<uint32_t> &indices,
 template <AlphabetPolicy Alphabet>
 PatriciaTree<Alphabet>::PatriciaTree(const std::vector<std::string> &input_data)
     : _size(static_cast<uint32_t>(input_data.size())) {
+#ifndef NDEBUG
+    for (const auto &s : input_data) {
+        internal::assert_no_null_bytes(s);
+    }
+#endif
+
     if (input_data.empty()) {
         return;
     }

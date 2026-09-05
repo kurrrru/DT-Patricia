@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +30,11 @@ consteval bool validate_alphabet_policy() {
 
     if (CHAR_TO_CODE['\0'] != Alphabet::CODE_TERM) {
         return false;
+    }
+    for (int ch = 1; ch < 256; ++ch) {
+        if (CHAR_TO_CODE[ch] == Alphabet::CODE_TERM) {
+            return false;
+        }
     }
     for (uint8_t code : CHAR_TO_CODE) {
         if (code > Alphabet::CODE_MAX) {
@@ -318,5 +324,16 @@ struct ProteinAlphabet {
 static_assert(AlphabetPolicy<DnaAlphabet>);
 static_assert(AlphabetPolicy<RyAlphabet>);
 static_assert(AlphabetPolicy<ProteinAlphabet>);
+
+namespace internal {
+inline void assert_no_null_bytes(const std::string &s) noexcept {
+#ifdef NDEBUG
+    (void)s;
+#else
+    assert(s.find('\0') == std::string::npos && "String contains null bytes");
+#endif
+}
+
+}  // namespace internal
 
 }  // namespace dt_patricia
