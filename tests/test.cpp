@@ -150,7 +150,9 @@ class BruteForceChecker {
     uint32_t compute_ed_linear(const std::string &s, const std::string &t) const {
         const size_t n = s.size(), m = t.size();
         std::vector<std::vector<uint32_t>> dp(n + 1, std::vector<uint32_t>(m + 1, INF));
-        dp[0][0] = 0;
+        // GCC 13 は n + 1 や m + 1 が 0 に折り返して dp が空になる経路を想定し、
+        // -Wnull-dereference の偽陽性を出す。範囲検査付きの at() で空でないことを示す。
+        dp.at(0).at(0) = 0;
         for (size_t i = 1; i <= n; ++i) {
             dp[i][0] = _cost.gap * static_cast<uint32_t>(i);
         }
