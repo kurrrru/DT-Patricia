@@ -119,6 +119,7 @@ inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_c
 [[nodiscard]] std::string_view get_label(uint32_t node_id) const noexcept;
 [[nodiscard]] uint32_t get_label_length(uint32_t node_id) const noexcept;
 [[nodiscard]] std::span<const uint32_t> get_string_id(uint32_t node_id) const noexcept;
+[[nodiscard]] uint32_t get_string_node(uint32_t string_id) const noexcept;
 ```
 
 - **`transition(node_id, ch)`** — `node_id` から出る辺のうち先頭文字が `ch` であるものをたどり、到達するノードの ID を返す。そのような辺がなければ `0` を返す。`char` を取るオーバーロードは `ch` をまず `CHAR_TO_CODE` で符号化するので、アルファベットの畳み込み規則（大文字小文字、`U`/`T`、キャッチオール）が適用される。`uint8_t` を取るオーバーロードは、符号化済みのコードを受け取る。
@@ -127,6 +128,7 @@ inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_c
 - **`is_terminal(node_id)`** — 辞書中の文字列がこのノードで終わる場合、すなわち `CODE_TERM` の出辺を持つ場合に `true`。ただし string ID は終端ノード自身ではなく、その辺の先の葉に紐づいている点に注意する（`get_string_id(transition(node_id, CODE_TERM))`）。
 - **`get_label(node_id)`** — `node_id` に**入ってくる**辺のラベル。返されるビューは木が保持する記憶域を指し、木が生存していてムーブ元になっていない限り有効である。
 - **`get_string_id(node_id)`** — この葉で終わる辞書文字列の ID 群。`node_id` が葉でない場合は空の span を返す。辞書に重複があった場合は複数の ID が返る。
+- **`get_string_node(string_id)`** — 文字列 `string_id` が終わるノード、すなわち `CODE_TERM` の出辺を持ち、その先の葉に `string_id` が紐づいているノードの ID。返るのはその葉ではなく葉の親なので、`get_string_id(get_string_node(id))` は常に空である。成り立つ関係は `id ∈ get_string_id(transition(get_string_node(id), CODE_TERM))` である。`string_id` は `string_count()` 未満でなければならない。
 
 ### 事前計算された部分木の統計
 
@@ -169,7 +171,9 @@ DTPatricia &operator=(DTPatricia &&) noexcept = delete;
 ~DTPatricia() = default;
 ```
 
-アライナは木への**参照**と、コストオブジェクトの**コピー**を保持する。木はアライナより長く生存していなければならない。構築は軽量であり、アライナごとのインデックスは作られない。したがって、1 つの木の上に異なるコストモデルのアライナを複数作ることが可能である。
+アライナは木への**参照**と、コストオブジェクトの**コピー**を保持する。木はアライナより長く生存していなければならない。アライナごとのインデックスは作られないので、1 つの木の上に異なるコストモデルのアライナを複数作ることが可能である。
+
+アライナは、クエリの作業領域を構築時に一度だけ確保して、クエリ間で使い回す。作業領域の大きさは木のノード数と文字列数に比例する。こうすることで、1 回のクエリの費用が、登録された文字列の数に比例する初期化を含まなくなる。
 
 その参照を保持しているがゆえに、コピーもムーブもできない。
 
@@ -193,7 +197,7 @@ using tree_type     = PatriciaTree<Alphabet>;
 ### `ed_to_all`
 
 ```cpp
-std::vector<AlignmentResult> ed_to_all(const std::string &query) const;
+std::vector<AlignmentResult> ed_to_all(const std::string &query);
 ```
 
 `query` から辞書中の**すべての**文字列までの距離を返す。結果はちょうど `string_count()` 件であり、木が空なら 0 件である。
@@ -203,7 +207,7 @@ std::vector<AlignmentResult> ed_to_all(const std::string &query) const;
 ### `ed_within_k`
 
 ```cpp
-std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const;
+std::vector<AlignmentResult> ed_within_k(const std::string &query, int k);
 ```
 
 `query` からの距離が **`k` 以下**（境界値を含む）である辞書文字列をすべて返す。`k` は編集操作の回数ではなくアライナのコストモデルにおけるコストなので、`LinearGapCost(1, 3)` のもとではギャップ 1 つですでにコスト 3 である。
@@ -215,7 +219,7 @@ std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const;
 ### `ed_pth_smallest`
 
 ```cpp
-std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) const;
+std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p);
 ```
 
 最も近い `p` 件の辞書文字列を返す。`p` は `string_count()` に切り詰められる。上と同じ理由により、`p == 0` は何も返さず終わるのではなく完全一致を返す。
@@ -230,7 +234,7 @@ std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p)
 template <typename StopPredicate>
 std::vector<AlignmentResult> search_kernel(const std::string &query,
                                            StopPredicate stop_predicate,
-                                           int upper_bound = -1) const;
+                                           int upper_bound = -1);
 ```
 
 他の 3 つのクエリが薄くラップしているエンジン本体。それらでは表現できない停止規則が必要なときに使う。
@@ -241,6 +245,22 @@ std::vector<AlignmentResult> search_kernel(const std::string &query,
 `CostType::is_linear` で制約された 2 つのオーバーロードが存在するが、適切なほうが自動的に選ばれ、呼び出し側からは区別できない。
 
 タイムアウトを表す述語と、top-k と閾値を組み合わせた述語の実例は [`examples/basic_example.cpp`](../examples/basic_example.cpp) の 6 節と 7 節にある。
+
+### 制限付き探索
+
+```cpp
+void set_restriction(const std::vector<uint8_t> &mask);
+void clear_restriction() noexcept;
+[[nodiscard]] bool restricted() const noexcept;
+```
+
+探索の対象を、辞書の文字列の一部に限る。
+
+- **`set_restriction(mask)`** — 以降のクエリの対象を、`mask[id] != 0` である文字列 ID に限る。`mask` の長さは `string_count()` と等しくなければならず、違えば `std::invalid_argument` を送出する。費用は文字列数に比例し、初回だけ木のノード数に比例する確保が加わる。設定は次に `set_restriction` か `clear_restriction` を呼ぶまで有効であり、同じ制限で何回クエリを投げても設定の費用は一度しかかからない。すでに制限があれば置き換える。
+- **`clear_restriction()`** — 制限を解除し、全 ID を対象に戻す。費用は定数である。
+- **`restricted()`** — 制限が設定されていれば `true`。
+
+制限があるとき、4 つのクエリ関数はいずれも許可された ID だけを返す。`ed_to_all` の停止と `ed_pth_smallest` の `p` の切り詰めには、`string_count()` の代わりに許可された ID の数が使われる。許可された ID が 1 つもなければ、クエリは直ちに空の結果を返す。
 
 ## クエリ結果のセマンティクス
 
@@ -335,10 +355,12 @@ void canonicalize_inplace(char *data, std::size_t n) noexcept;
 
 ## スレッド安全性
 
-`PatriciaTree` は構築後に変更されない。また `DTPatricia` のクエリ関数はいずれも `const` であり、作業状態をすべてローカル変数に持つ。したがって、同じ木、さらには同じアライナに対して、外部同期なしに任意個のスレッドから同時にクエリを投げてよい。
+`PatriciaTree` は構築後に変更されないので、同じ木に対して外部同期なしに任意個のスレッドから同時にクエリを投げてよい。
+
+一方、`DTPatricia` は作業領域をメンバに持ち、クエリ関数はそれを書き換える（いずれも `const` ではない）。したがって、同じアライナを複数のスレッドから同時に使ってはならない。並列にクエリを投げる場合は、同じ木の上にスレッドごとに 1 つずつアライナを作る。
 
 内部での並列化は行っていない。1 つのクエリは 1 つのスレッドで実行される。
 
 ## 例外
 
-ライブラリが例外を投げるのは、正でないコストに対して `std::invalid_argument` を送出するコストポリシーのコンストラクタだけである。標準ライブラリからの確保失敗は通常どおり伝播する。クエリ関数自体は例外を投げない。
+ライブラリが例外を投げるのは、正でないコストに対して `std::invalid_argument` を送出するコストポリシーのコンストラクタと、長さの合わない `mask` に対して `std::invalid_argument` を送出する `DTPatricia::set_restriction` だけである。標準ライブラリからの確保失敗は通常どおり伝播する。クエリ関数自体は例外を投げない。

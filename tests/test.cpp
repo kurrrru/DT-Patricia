@@ -377,40 +377,156 @@ static void print_mismatch(const std::string &query, const std::string &op_name,
 // Test execution
 // ============================================================
 
+// Expected answer of `op` restricted to the IDs with mask[id] != 0, derived from the brute-force
+// answer of ed_to_all. Uses the same semantics as BruteForceChecker (ties at the p-th score are
+// included in ed_pth_smallest).
+template <typename Checker>
+static std::vector<dt_patricia::AlignmentResult> expected_with_mask(
+    const Checker &brute, const std::string &query, const TestOp &op,
+    const std::vector<uint8_t> &mask) {
+    std::vector<dt_patricia::AlignmentResult> all;
+    for (const auto &r : brute.ed_to_all(query)) {
+        if (mask[r.string_id] != 0) {
+            all.push_back(r);
+        }
+    }
+    if (op.name == "ed_to_all") {
+        return all;
+    }
+    if (op.name == "ed_within_k") {
+        std::vector<dt_patricia::AlignmentResult> within;
+        for (const auto &r : all) {
+            if (static_cast<int>(r.score) <= op.k) {
+                within.push_back(r);
+            }
+        }
+        return within;
+    }
+    // ed_pth_smallest
+    const size_t p = static_cast<size_t>(op.k);
+    if (p == 0) {
+        return {};
+    }
+    if (p >= all.size()) {
+        return all;
+    }
+    const uint32_t threshold = all[p - 1].score;
+    std::vector<dt_patricia::AlignmentResult> smallest;
+    for (const auto &r : all) {
+        if (r.score <= threshold) {
+            smallest.push_back(r);
+        }
+    }
+    return smallest;
+}
+
+// Restriction masks exercised for every test case: none allowed, all allowed, a single ID, and a
+// few pseudo-random subsets (deterministic so failures are reproducible).
+static std::vector<std::vector<uint8_t>> make_masks(size_t n) {
+    std::vector<std::vector<uint8_t>> masks;
+    masks.emplace_back(n, uint8_t{0});
+    masks.emplace_back(n, uint8_t{1});
+    if (n > 0) {
+        std::vector<uint8_t> single(n, 0);
+        single[n / 2] = 1;
+        masks.push_back(single);
+    }
+    uint32_t state = 2463534242u;
+    for (int m = 0; m < 4; ++m) {
+        std::vector<uint8_t> mask(n);
+        for (size_t id = 0; id < n; ++id) {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            mask[id] = static_cast<uint8_t>((state >> 3) & 1u);
+        }
+        masks.push_back(mask);
+    }
+    return masks;
+}
+
 template <typename Alphabet, typename CostType>
 static bool run_with_cost(const TestCase &tc, CostType cost) {
     dt_patricia::PatriciaTree<Alphabet> tree(tc.targets);
     dt_patricia::DTPatricia<Alphabet, CostType> dtp_aligner(tree, cost);
     BruteForceChecker<Alphabet, CostType> brute(tc.targets, cost);
 
+    // The aligner keeps its working state across searches, so every search below reuses the same
+    // instance. A wrong restoration shows up as a mismatch in a later search.
     bool all_passed = true;
-    for (const auto &query : tc.queries) {
-        for (const auto &op : tc.ops) {
-            std::vector<dt_patricia::AlignmentResult> expected, actual;
+    auto run_all = [&](const std::vector<uint8_t> *mask) {
+        for (const auto &query : tc.queries) {
+            for (const auto &op : tc.ops) {
+                std::vector<dt_patricia::AlignmentResult> expected, actual;
 
-            if (op.name == "ed_to_all") {
-                expected = brute.ed_to_all(query);
-                actual = dtp_aligner.ed_to_all(query);
-            } else if (op.name == "ed_within_k") {
-                expected = brute.ed_within_k(query, op.k);
-                actual = dtp_aligner.ed_within_k(query, op.k);
-            } else if (op.name == "ed_pth_smallest") {
-                expected = brute.ed_pth_smallest(query, static_cast<size_t>(op.k));
-                actual = dtp_aligner.ed_pth_smallest(query, static_cast<size_t>(op.k));
-            } else {
-                std::cout << "    Unknown op: " << op.name << "\n";
-                all_passed = false;
-                continue;
-            }
+                if (op.name == "ed_to_all") {
+                    expected = brute.ed_to_all(query);
+                    actual = dtp_aligner.ed_to_all(query);
+                } else if (op.name == "ed_within_k") {
+                    expected = brute.ed_within_k(query, op.k);
+                    actual = dtp_aligner.ed_within_k(query, op.k);
+                } else if (op.name == "ed_pth_smallest") {
+                    expected = brute.ed_pth_smallest(query, static_cast<size_t>(op.k));
+                    actual = dtp_aligner.ed_pth_smallest(query, static_cast<size_t>(op.k));
+                } else {
+                    std::cout << "    Unknown op: " << op.name << "\n";
+                    all_passed = false;
+                    continue;
+                }
+                if (mask != nullptr) {
+                    expected = expected_with_mask(brute, query, op, *mask);
+                }
 
-            sort_results(expected);
-            sort_results(actual);
+                sort_results(expected);
+                sort_results(actual);
 
-            if (!results_equal(expected, actual)) {
-                print_mismatch(query, op.name, op.k, expected, actual, tc.targets);
-                all_passed = false;
+                if (!results_equal(expected, actual)) {
+                    if (mask != nullptr) {
+                        std::cout << "    (restricted to:";
+                        for (size_t id = 0; id < mask->size(); ++id) {
+                            if ((*mask)[id] != 0) {
+                                std::cout << " " << id;
+                            }
+                        }
+                        std::cout << ")\n";
+                    }
+                    print_mismatch(query, op.name, op.k, expected, actual, tc.targets);
+                    all_passed = false;
+                }
             }
         }
+    };
+
+    run_all(nullptr);
+
+    // Restricted searches. The masks are set back to back without clearing in between, so that
+    // replacing an existing restriction is exercised as well.
+    for (const auto &mask : make_masks(tc.targets.size())) {
+        dtp_aligner.set_restriction(mask);
+        run_all(&mask);
+    }
+    dtp_aligner.clear_restriction();
+    run_all(nullptr);
+
+    // Clearing leaves the restricted state in place and the next set_restriction discards it, so
+    // alternate set / clear to check that nothing from an earlier restriction leaks into a later
+    // search, restricted or not.
+    for (const auto &mask : make_masks(tc.targets.size())) {
+        dtp_aligner.set_restriction(mask);
+        run_all(&mask);
+        dtp_aligner.clear_restriction();
+        run_all(nullptr);
+    }
+
+    bool threw = false;
+    try {
+        dtp_aligner.set_restriction(std::vector<uint8_t>(tc.targets.size() + 1, 1));
+    } catch (const std::invalid_argument &) {
+        threw = true;
+    }
+    if (!threw || dtp_aligner.restricted()) {
+        std::cout << "    set_restriction did not reject a mask of the wrong size\n";
+        all_passed = false;
     }
     return all_passed;
 }

@@ -62,6 +62,7 @@ void PatriciaTree<Alphabet>::build(const std::vector<std::string> &input_data,
     _string_ids_offset.assign(2, 0);
     _string_ids_count.assign(2, 0);
     _subtree_counts.assign(2, 0);
+    _string_node.assign(input_data.size(), 0);
 
     if (sorted_indices.size() > 0) {
         _subtree_counts[1] = static_cast<uint32_t>(sorted_indices.size());
@@ -253,6 +254,9 @@ void PatriciaTree<Alphabet>::build_node_bfs(uint32_t node_id, size_t start_idx, 
 
             _string_ids.insert(_string_ids.end(), sorted_indices.begin() + group.start,
                                sorted_indices.begin() + group.end);
+            for (size_t idx = group.start; idx < group.end; ++idx) {
+                _string_node[sorted_indices[idx]] = node_id;
+            }
 
             _label_offset[child_node_id] = 0;
             _label_len[child_node_id] = 0;

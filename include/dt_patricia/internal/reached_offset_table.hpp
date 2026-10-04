@@ -35,17 +35,34 @@ inline constexpr bool DOMINANCE_AT_EXTEND_ENTRY =
 //   DT_PATRICIA_DOMINANCE_AT_ENTRY   : 1 要素 = 対角線 1 本ぶんの offset
 class ReachedOffsetTable {
  public:
-    // 判定を有効にする。呼ぶまでは dominated() が常に false を返し、record() は何もしない。
+    // ノード数 0 の表。enable() しない用途（使わない層の表）のためにある。
+    ReachedOffsetTable() = default;
+
+    // ノード添字で引く表 (_begin, _radius) をここで確保する。確保はノード数に比例するので、
+    // クエリごとではなく所有者の構築時に一度だけ行い、クエリ間では reset() で使い回す。
     //   parent_path_len[v] : 根から v の親までのパス長。ウィンドウの中心になる。
-    void enable(const std::vector<uint32_t> &parent_path_len) {
-        _center = &parent_path_len;
-        _arena.clear();
-        // 半径 0 を「このクエリではまだ確保していない」の印にする。
-        // 実際の半径は必ず INITIAL_RADIUS 以上なので 0 と衝突しない。
-        _begin.assign(parent_path_len.size(), 0);
-        _radius.assign(parent_path_len.size(), 0);
+    explicit ReachedOffsetTable(const std::vector<uint32_t> &parent_path_len)
+        : _center(&parent_path_len),
+          // 半径 0 を「このクエリではまだ確保していない」の印にする。
+          // 実際の半径は必ず INITIAL_RADIUS 以上なので 0 と衝突しない。
+          _begin(parent_path_len.size(), 0),
+          _radius(parent_path_len.size(), 0) {}
+
+    // 判定を有効にする。呼ぶまでは dominated() が常に false を返し、record() は何もしない。
+    void enable() noexcept { _enabled = true; }
+
+    // クエリで書き換えた箇所だけを戻し、構築直後と同じ状態にする。
+    // 費用はこのクエリで区画を確保したノードの数に比例する。
+    void reset() noexcept {
+        for (const uint32_t node_id : _allocated_nodes) {
+            _radius[node_id] = 0;  // _begin は _radius が 0 のノードでは読まれないので戻さない
+        }
+        _allocated_nodes.clear();
+        _arena.clear();  // 追加する要素は必ず ARENA_INIT で埋めるので、容量だけ残せばよい
+        // 残すと、次のクエリの最初のノードが前回の最後と同じとき refresh_cache が省かれ、
+        // 消した区画を指したまま使ってしまう
         _cached_node = INVALID_NODE;
-        _enabled = true;
+        _enabled = false;
     }
 
     [[nodiscard]] bool enabled() const noexcept { return _enabled; }
@@ -159,6 +176,8 @@ class ReachedOffsetTable {
 
     void allocate(uint32_t node_id, int64_t delta) {
         const std::size_t radius = radius_covering(delta);
+        // 先に積んでおけば、後続の確保が例外を投げても reset() で戻せる
+        _allocated_nodes.push_back(node_id);
         _begin[node_id] = _arena.size();
         _radius[node_id] = static_cast<uint32_t>(radius);
         _arena.resize(_arena.size() + elements_for(radius), ARENA_INIT);
@@ -185,6 +204,7 @@ class ReachedOffsetTable {
     std::vector<uint32_t> _arena;
     std::vector<std::size_t> _begin;  // _arenaにおける区間の開始位置。インデックスはnode_id
     std::vector<uint32_t> _radius;  // 確保済み領域の半径。インデックスはnode_id
+    std::vector<uint32_t> _allocated_nodes;  // このクエリで区画を確保したノード。reset() で使う
 
     // キャッシュ情報
     uint32_t _cached_node = INVALID_NODE;
