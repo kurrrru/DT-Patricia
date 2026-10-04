@@ -160,7 +160,7 @@ class PatriciaTree {
     // そのノードが単語終端であるかを事前に必ず確認すること
     std::vector<uint32_t> _string_ids_offset;  // index=ノードID, 値=_string_idsプール内の開始位置
     std::vector<uint32_t> _string_ids_count;  // index=ノードID, 値=そのノードに紐づくIDの個数
-    std::vector<uint32_t> _string_ids;  // 全てのIDを隙間なく詰め込んだ巨大配列
+    std::vector<uint32_t> _string_ids;   // 全てのIDを隙間なく詰め込んだ巨大配列
     std::vector<uint32_t> _string_node;  // index=単語ID, 値=その単語で終わるノードID
 
     std::vector<uint32_t>
