@@ -1,8 +1,6 @@
 # API reference
 
-The exact contract of DT-Patricia's public interface. If you are looking for how to
-accomplish something rather than what a given entity does, start at
-[Getting started](10_getting_started.md).
+The exact contract of DT-Patricia's public interface. If you are looking for how to accomplish something rather than what a given entity does, start at [Getting started](10_getting_started.md).
 
 Everything below lives in namespace `dt_patricia`.
 
@@ -30,9 +28,7 @@ Everything below lives in namespace `dt_patricia`.
 | `<dt_patricia/policy/alphabet.hpp>` | `AlphabetPolicy`, the bundled alphabets, `canonicalize` |
 | `<dt_patricia/policy/cost.hpp>` | `UnitCost`, `LinearGapCost`, `AffineGapCost` |
 
-`dt_patricia/internal/` and `dt_patricia/debug/` are not part of the public interface. Their
-contents may change at any time, so including them or naming anything in
-`dt_patricia::internal` is not recommended.
+`dt_patricia/internal/` and `dt_patricia/debug/` are not part of the public interface. Their contents may change at any time, so including them or naming anything in `dt_patricia::internal` is not recommended.
 
 ## `AlignmentResult`
 
@@ -43,11 +39,8 @@ struct AlignmentResult {
 };
 ```
 
-- **`string_id`** — Index of the matched string in the `std::vector<std::string>` that was
-  passed to the `PatriciaTree` constructor, in the original input order. Not an internal node
-  id.
-- **`score`** — The exact optimal alignment cost between the query and that string, under the
-  aligner's cost model. With `UnitCost` this is the Levenshtein distance.
+- **`string_id`** — Index of the matched string in the `std::vector<std::string>` that was passed to the `PatriciaTree` constructor, in the original input order. Not an internal node id.
+- **`score`** — The exact optimal alignment cost between the query and that string, under the aligner's cost model. With `UnitCost` this is the Levenshtein distance.
 
 An aggregate; it has no member functions.
 
@@ -58,8 +51,7 @@ template <AlphabetPolicy Alphabet = DnaAlphabet>
 class PatriciaTree;
 ```
 
-An immutable, path-compressed trie holding the dictionary. Build one, then create one or
-more aligners over it.
+An immutable, path-compressed trie holding the dictionary. Build one, then create one or more aligners over it.
 
 `Alphabet` must satisfy the [`AlphabetPolicy`](21_extending.md#alphabetpolicy) concept.
 
@@ -76,13 +68,9 @@ PatriciaTree &operator=(PatriciaTree &&) noexcept = default;
 ~PatriciaTree() = default;
 ```
 
-The constructor builds the whole tree; there is no separate build step and no way to insert
-or erase afterwards. `input_data` is not retained — the tree copies what it needs — so it may
-be destroyed as soon as the constructor returns. String ids refer to positions in
-`input_data`, so callers who want the strings back must keep them.
+The constructor builds the whole tree; there is no separate build step and no way to insert or erase afterwards. `input_data` is not retained — the tree copies what it needs — so it may be destroyed as soon as the constructor returns. String ids refer to positions in `input_data`, so callers who want the strings back must keep them.
 
-`input_data` may be empty, may contain empty strings, and may contain duplicates. Duplicates
-keep their distinct ids and are reported as separate results.
+`input_data` may be empty, may contain empty strings, and may contain duplicates. Duplicates keep their distinct ids and are reported as separate results.
 
 No string may contain `'\0'`.
 
@@ -101,9 +89,7 @@ static constexpr std::size_t SIMD_PADDING_SIZE = 256;
 inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_char_to_code();
 ```
 
-`SIMD_PADDING_SIZE` is the slack the search kernel appends to its internal copy of the query
-so that vectorised loads cannot read past the end. It is exposed as a constant rather than as
-a requirement on the caller: query strings you pass in need no padding of their own.
+`SIMD_PADDING_SIZE` is the slack the search kernel appends to its internal copy of the query so that vectorised loads cannot read past the end. It is exposed as a constant rather than as a requirement on the caller: query strings you pass in need no padding of their own.
 
 ### Dictionary-level queries
 
@@ -113,22 +99,15 @@ a requirement on the caller: query strings you pass in need no padding of their 
 [[nodiscard]] uint32_t node_count() const noexcept;
 ```
 
-- **`empty()`** — `true` if the tree holds no nodes, i.e. it was built from an empty vector.
-  Querying an empty tree is well-defined and returns no results.
-- **`string_count()`** — Number of strings in the dictionary, counting duplicates separately.
-  Equal to `input_data.size()`.
-- **`node_count()`** — Number of node slots in the tree, including the reserved id 0. An
-  implementation detail of the layout rather than a meaningful measure of dictionary size.
+- **`empty()`** — `true` if the tree holds no nodes, i.e. it was built from an empty vector. Querying an empty tree is well-defined and returns no results.
+- **`string_count()`** — Number of strings in the dictionary, counting duplicates separately. Equal to `input_data.size()`.
+- **`node_count()`** — Number of node slots in the tree, including the reserved id 0. An implementation detail of the layout rather than a meaningful measure of dictionary size.
 
 ### Node-level traversal
 
-These expose the tree structure itself. They are public because they are useful for
-inspecting, exporting or reimplementing traversals over the dictionary, but a normal user of
-the library never needs them — the search in `DTPatricia` is the intended way to consume the
-tree.
+These expose the tree structure itself. They are public because they are useful for inspecting, exporting or reimplementing traversals over the dictionary, but a normal user of the library never needs them — the search in `DTPatricia` is the intended way to consume the tree.
 
-Node id `0` is the reserved invalid value; the root is id `1`. Every accessor below expects a
-valid node id; passing `0` or an out-of-range id is undefined behaviour except where noted.
+Node id `0` is the reserved invalid value; the root is id `1`. Every accessor below expects a valid node id; passing `0` or an out-of-range id is undefined behaviour except where noted.
 
 ```cpp
 [[nodiscard]] uint32_t root_id() const noexcept;                              // always 1
@@ -143,28 +122,13 @@ valid node id; passing `0` or an out-of-range id is undefined behaviour except w
 [[nodiscard]] uint32_t get_string_node(uint32_t string_id) const noexcept;
 ```
 
-- **`transition(node_id, ch)`** — Follows the edge leaving `node_id` whose first character is
-  `ch`, and returns the id of the node it reaches, or `0` if there is no such edge. The `char`
-  overload encodes `ch` through `CHAR_TO_CODE` first, so it applies the alphabet's folding rules
-  (case, `U`/`T`, catch-all). The `uint8_t` overload takes an already-encoded code.
-- **`get_parent(node_id)`** — The parent's node id, or `0` for the root and for out-of-range
-  ids.
+- **`transition(node_id, ch)`** — Follows the edge leaving `node_id` whose first character is `ch`, and returns the id of the node it reaches, or `0` if there is no such edge. The `char` overload encodes `ch` through `CHAR_TO_CODE` first, so it applies the alphabet's folding rules (case, `U`/`T`, catch-all). The `uint8_t` overload takes an already-encoded code.
+- **`get_parent(node_id)`** — The parent's node id, or `0` for the root and for out-of-range ids.
 - **`is_leaf(node_id)`** — `true` if the node has no outgoing edges.
-- **`is_terminal(node_id)`** — `true` if a dictionary string ends at this node, i.e. it has an
-  outgoing `CODE_TERM` edge. Note that the string ids are **not** attached to the terminal node
-  itself but to the leaf reached through that edge — `get_string_id(transition(node_id,
-  CODE_TERM))`.
-- **`get_label(node_id)`** — The label of the edge **entering** `node_id`. The returned view
-  points into storage owned by the tree and is valid as long as the tree is alive and not moved
-  from.
-- **`get_string_id(node_id)`** — The ids of the dictionary strings ending at this leaf. Returns
-  an empty span if `node_id` is not a leaf. More than one id is returned when the dictionary
-  contained duplicates.
-- **`get_string_node(string_id)`** — The id of the node at which string `string_id` ends, i.e.
-  the node with an outgoing `CODE_TERM` edge whose leaf holds `string_id`. It is the parent of
-  that leaf, not the leaf itself, so `get_string_id(get_string_node(id))` is always empty; the
-  relation is `id ∈ get_string_id(transition(get_string_node(id), CODE_TERM))`. `string_id` must
-  be less than `string_count()`.
+- **`is_terminal(node_id)`** — `true` if a dictionary string ends at this node, i.e. it has an outgoing `CODE_TERM` edge. Note that the string ids are **not** attached to the terminal node itself but to the leaf reached through that edge — `get_string_id(transition(node_id, CODE_TERM))`.
+- **`get_label(node_id)`** — The label of the edge **entering** `node_id`. The returned view points into storage owned by the tree and is valid as long as the tree is alive and not moved from.
+- **`get_string_id(node_id)`** — The ids of the dictionary strings ending at this leaf. Returns an empty span if `node_id` is not a leaf. More than one id is returned when the dictionary contained duplicates.
+- **`get_string_node(string_id)`** — The id of the node at which string `string_id` ends, i.e. the node with an outgoing `CODE_TERM` edge whose leaf holds `string_id`. It is the parent of that leaf, not the leaf itself, so `get_string_id(get_string_node(id))` is always empty; the relation is `id ∈ get_string_id(transition(get_string_node(id), CODE_TERM))`. `string_id` must be less than `string_count()`.
 
 ### Precomputed subtree statistics
 
@@ -175,15 +139,11 @@ valid node id; passing `0` or an out-of-range id is undefined behaviour except w
 [[nodiscard]] const std::vector<uint32_t> &get_parent_path_lengths() const noexcept;
 ```
 
-Each is indexed by node id and is computed once during construction. The search uses them to
-prune; they are exposed for the same reason as the traversal accessors above.
+Each is indexed by node id and is computed once during construction. The search uses them to prune; they are exposed for the same reason as the traversal accessors above.
 
 - **`get_subtree_counts()`** — Number of dictionary strings in the subtree rooted at each node.
-- **`get_subtree_max_lengths()` / `get_subtree_min_lengths()`** — The longest and shortest
-  distance from each node down to a leaf of its subtree, counting that node's own incoming
-  label.
-- **`get_parent_path_lengths()`** — The length of the path from the root to each node's
-  **parent**, excluding the node's own incoming label.
+- **`get_subtree_max_lengths()` / `get_subtree_min_lengths()`** — The longest and shortest distance from each node down to a leaf of its subtree, counting that node's own incoming label.
+- **`get_parent_path_lengths()`** — The length of the path from the root to each node's **parent**, excluding the node's own incoming label.
 
 The returned references are valid as long as the tree is alive and not moved from.
 
@@ -196,8 +156,7 @@ class DTPatricia;
 
 The search engine. It runs the diagonal transition algorithm over a `PatriciaTree`.
 
-`Alphabet` must be the *same* type the tree was instantiated with; a mismatch is a compile
-error. `CostType` must satisfy the [cost policy requirements](21_extending.md#cost-policies).
+`Alphabet` must be the *same* type the tree was instantiated with; a mismatch is a compile error. `CostType` must satisfy the [cost policy requirements](21_extending.md#cost-policies).
 
 ### Construction and special members
 
@@ -212,20 +171,13 @@ DTPatricia &operator=(DTPatricia &&) noexcept = delete;
 ~DTPatricia() = default;
 ```
 
-The aligner stores a **reference** to the tree and a **copy** of the cost object. The tree
-must outlive the aligner. No per-aligner index is built, so it is possible to create several
-aligners with different cost models over one tree.
+The aligner stores a **reference** to the tree and a **copy** of the cost object. The tree must outlive the aligner. No per-aligner index is built, so it is possible to create several aligners with different cost models over one tree.
 
-The aligner allocates its per-query working state once, at construction, and reuses it across
-queries. Its size is proportional to the number of nodes in the tree and the number of strings.
-This keeps initialisation proportional to the number of stored strings out of the cost of each
-query.
+The aligner allocates its per-query working state once, at construction, and reuses it across queries. Its size is proportional to the number of nodes in the tree and the number of strings. This keeps initialisation proportional to the number of stored strings out of the cost of each query.
 
 Neither copyable nor movable, precisely because it holds that reference.
 
-The default argument for `cost` is only instantiated if you omit the argument, so a
-`CostType` without a default constructor — `LinearGapCost` and `AffineGapCost` are both such
-types — simply requires you to pass one.
+The default argument for `cost` is only instantiated if you omit the argument, so a `CostType` without a default constructor — `LinearGapCost` and `AffineGapCost` are both such types — simply requires you to pass one.
 
 ### Member types
 
@@ -248,8 +200,7 @@ The tree the aligner was constructed over.
 std::vector<AlignmentResult> ed_to_all(const std::string &query);
 ```
 
-Returns the distance from `query` to **every** string in the dictionary — exactly
-`string_count()` results, or none if the tree is empty.
+Returns the distance from `query` to **every** string in the dictionary — exactly `string_count()` results, or none if the tree is empty.
 
 No threshold is available to prune with, so this is the most expensive of the three queries.
 
@@ -259,12 +210,9 @@ No threshold is available to prune with, so this is the most expensive of the th
 std::vector<AlignmentResult> ed_within_k(const std::string &query, int k);
 ```
 
-Returns every dictionary string whose distance from `query` is **at most `k`**, boundary
-included. `k` is a cost under the aligner's cost model, not a number of edit operations, so
-under `LinearGapCost(1, 3)` a single gap already costs 3.
+Returns every dictionary string whose distance from `query` is **at most `k`**, boundary included. `k` is a cost under the aligner's cost model, not a number of edit operations, so under `LinearGapCost(1, 3)` a single gap already costs 3.
 
-`k` doubles as an upper bound for pruning, and the pruning is exact with respect to it: no
-string within the threshold is ever dropped. Smaller `k` therefore means a faster search.
+`k` doubles as an upper bound for pruning, and the pruning is exact with respect to it: no string within the threshold is ever dropped. Smaller `k` therefore means a faster search.
 
 Because a distance level is always completed before the stop condition is evaluated, `k == 0` returns the exact matches, and any `k < 0` behaves the same as `k == 0` rather than returning nothing.
 
@@ -276,10 +224,7 @@ std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p)
 
 Returns the `p` nearest dictionary strings. `p` is clamped to `string_count()`. For the same reason as above, `p == 0` returns the exact matches rather than nothing.
 
-**The result may contain more than `p` entries.** The search completes each distance level
-before it can test whether enough results have been collected, so if several strings tie at
-the cut-off distance, all of them are returned. This avoids choosing arbitrarily between
-equally good candidates. Truncate the result yourself if you need exactly `p`.
+**The result may contain more than `p` entries.** The search completes each distance level before it can test whether enough results have been collected, so if several strings tie at the cut-off distance, all of them are returned. This avoids choosing arbitrarily between equally good candidates. Truncate the result yourself if you need exactly `p`.
 
 No pruning bound is used, because the cut-off distance is not known in advance.
 
@@ -292,27 +237,14 @@ std::vector<AlignmentResult> search_kernel(const std::string &query,
                                            int upper_bound = -1);
 ```
 
-The engine the other three queries are thin wrappers around. Use it when you need a stopping
-rule they do not express.
+The engine the other three queries are thin wrappers around. Use it when you need a stopping rule they do not express.
 
-- **`stop_predicate`** — Callable with the signature `bool(int current_score, const
-  std::vector<AlignmentResult> &results)`. It is invoked **once per distance level**, after
-  every match at that distance has been appended to `results`. Returning `true` stops the search
-  and the collected results are returned as-is. `current_score` is the distance level just
-  finished, and increases monotonically across calls. Because it is consulted only between
-  levels, any budget expressed through it — including a wall-clock deadline — has a granularity
-  of one distance level's worth of work.
-- **`upper_bound`** — Enables pruning at cost `upper_bound`, exactly as `ed_within_k` does.
-  `-1`, the default, disables pruning. The pruning never discards a candidate that could be
-  within the bound, but note that it does **not** by itself stop the search — pass a
-  `stop_predicate` that also respects the bound, or the search will keep going past it with
-  nothing left to find.
+- **`stop_predicate`** — Callable with the signature `bool(int current_score, const std::vector<AlignmentResult> &results)`. It is invoked **once per distance level**, after every match at that distance has been appended to `results`. Returning `true` stops the search and the collected results are returned as-is. `current_score` is the distance level just finished, and increases monotonically across calls. Because it is consulted only between levels, any budget expressed through it — including a wall-clock deadline — has a granularity of one distance level's worth of work.
+- **`upper_bound`** — Enables pruning at cost `upper_bound`, exactly as `ed_within_k` does. `-1`, the default, disables pruning. The pruning never discards a candidate that could be within the bound, but note that it does **not** by itself stop the search — pass a `stop_predicate` that also respects the bound, or the search will keep going past it with nothing left to find.
 
-Two overloads exist, constrained on `CostType::is_linear`; the correct one is selected
-automatically and they are indistinguishable to the caller.
+Two overloads exist, constrained on `CostType::is_linear`; the correct one is selected automatically and they are indistinguishable to the caller.
 
-Sections 6 and 7 of [`examples/basic_example.cpp`](../examples/basic_example.cpp) show a
-timeout predicate and a combined top-k-with-threshold predicate.
+Sections 6 and 7 of [`examples/basic_example.cpp`](../examples/basic_example.cpp) show a timeout predicate and a combined top-k-with-threshold predicate.
 
 ### Restricted search
 
@@ -324,35 +256,22 @@ void clear_restriction() noexcept;
 
 Limits the search to a subset of the dictionary strings.
 
-- **`set_restriction(mask)`** — Restricts subsequent queries to the string ids with
-  `mask[id] != 0`. `mask` must have exactly `string_count()` elements; otherwise
-  `std::invalid_argument` is thrown. The cost is proportional to the number of strings, plus, on
-  the first call only, an allocation proportional to the number of nodes in the tree. The
-  restriction stays in effect until the next call to `set_restriction` or `clear_restriction`,
-  so its cost is paid once however many queries run under it. An existing restriction is
-  replaced.
-- **`clear_restriction()`** — Removes the restriction, so that every id is searched again. Runs
-  in constant time.
+- **`set_restriction(mask)`** — Restricts subsequent queries to the string ids with `mask[id] != 0`. `mask` must have exactly `string_count()` elements; otherwise `std::invalid_argument` is thrown. The cost is proportional to the number of strings, plus, on the first call only, an allocation proportional to the number of nodes in the tree. The restriction stays in effect until the next call to `set_restriction` or `clear_restriction`, so its cost is paid once however many queries run under it. An existing restriction is replaced.
+- **`clear_restriction()`** — Removes the restriction, so that every id is searched again. Runs in constant time.
 - **`restricted()`** — `true` if a restriction is in effect.
 
-While a restriction is in effect, all four query functions return allowed ids only. The stop
-condition of `ed_to_all` and the clamping of `p` in `ed_pth_smallest` use the number of allowed
-ids instead of `string_count()`. If no id is allowed, a query returns an empty result at once.
+While a restriction is in effect, all four query functions return allowed ids only. The stop condition of `ed_to_all` and the clamping of `p` in `ed_pth_smallest` use the number of allowed ids instead of `string_count()`. If no id is allowed, a query returns an empty result at once.
 
 ## Query result semantics
 
 These hold for all four query functions.
 
-- **Order.** Results are appended in non-decreasing order of `score`. The relative order of
-  entries sharing a score is unspecified and should not be relied upon.
-- **Uniqueness.** Each `string_id` appears at most once. Duplicate strings in the dictionary
-  have distinct ids, so each of them appears once.
+- **Order.** Results are appended in non-decreasing order of `score`. The relative order of entries sharing a score is unspecified and should not be relied upon.
+- **Uniqueness.** Each `string_id` appears at most once. Duplicate strings in the dictionary have distinct ids, so each of them appears once.
 - **Exactness.** Every reported `score` is the optimal cost. No approximation, no heuristic.
 - **Empty tree.** Returns an empty vector.
-- **Empty query.** Well-defined: the distance to each dictionary string is the cost of
-  deleting it entirely.
-- **Query length.** The query is copied and canonicalised internally; the string you pass is
-  not modified.
+- **Empty query.** Well-defined: the distance to each dictionary string is the cost of deleting it entirely.
+- **Query length.** The query is copied and canonicalised internally; the string you pass is not modified.
 
 ## Cost policies
 
@@ -369,9 +288,7 @@ struct UnitCost {
 };
 ```
 
-Plain Levenshtein distance. Stateless and default-constructible, so
-`DTPatricia<Alphabet, UnitCost>` needs no cost argument. `is_unit` selects a specialised code
-path, making this materially faster than expressing the same costs through `LinearGapCost`.
+Plain Levenshtein distance. Stateless and default-constructible, so `DTPatricia<Alphabet, UnitCost>` needs no cost argument. `is_unit` selects a specialised code path, making this materially faster than expressing the same costs through `LinearGapCost`.
 
 ### `LinearGapCost`
 
@@ -386,8 +303,7 @@ struct LinearGapCost {
 };
 ```
 
-A run of `L` gap characters costs `gap * L`. Throws `std::invalid_argument` if `m < 1` or
-`g < 1`. Not default-constructible.
+A run of `L` gap characters costs `gap * L`. Throws `std::invalid_argument` if `m < 1` or `g < 1`. Not default-constructible.
 
 ### `AffineGapCost`
 
@@ -403,16 +319,11 @@ struct AffineGapCost {
 };
 ```
 
-A run of `L` gap characters costs `gap_open + gap_extend * L`. Throws
-`std::invalid_argument` if `m < 1` or `g_extend < 1`; `gap_open` may be 0. Not
-default-constructible.
+A run of `L` gap characters costs `gap_open + gap_extend * L`. Throws `std::invalid_argument` if `m < 1` or `g_extend < 1`; `gap_open` may be 0. Not default-constructible.
 
 ## Alphabet policies
 
-Defined in `<dt_patricia/policy/alphabet.hpp>`. Each maps all 256 byte values onto a small
-set of codes. Code `0` is always the terminator. Characters sharing a code are
-indistinguishable to the search, and each alphabet has one catch-all code that every
-character it does not name falls into — so all unnamed characters match one another.
+Defined in `<dt_patricia/policy/alphabet.hpp>`. Each maps all 256 byte values onto a small set of codes. Code `0` is always the terminator. Characters sharing a code are indistinguishable to the search, and each alphabet has one catch-all code that every character it does not name falls into — so all unnamed characters match one another.
 
 Case is never distinguished.
 
@@ -422,11 +333,9 @@ Case is never distinguished.
 | `RyAlphabet` | 3 | `R` (from `A`, `G`, `R`), `Y` (from `C`, `T`, `U`, `Y`) | `N` |
 | `ProteinAlphabet` | 21 | `A C D E F G H I K L M N P Q R S T V W Y` | `X` |
 
-Under `ProteinAlphabet` the ambiguity codes `B`, `J`, `O`, `U`, `X` and `Z` all fall into the
-catch-all and are therefore mutually equal.
+Under `ProteinAlphabet` the ambiguity codes `B`, `J`, `O`, `U`, `X` and `Z` all fall into the catch-all and are therefore mutually equal.
 
-The `AlphabetPolicy` concept these satisfy is documented in
-[Extending DT-Patricia](21_extending.md#alphabetpolicy).
+The `AlphabetPolicy` concept these satisfy is documented in [Extending DT-Patricia](21_extending.md#alphabetpolicy).
 
 ## Free functions
 
@@ -438,31 +347,20 @@ template <AlphabetPolicy Alphabet>
 void canonicalize_inplace(char *data, std::size_t n) noexcept;
 ```
 
-Rewrite each character to the representative character of its code under `Alphabet`. This is
-what the search does internally to the query, and it is exposed so that callers can see
-exactly what the library compares — under `DnaAlphabet`, `canonicalize<DnaAlphabet>("acgu")`
-is `"ACGT"`, and under `RyAlphabet` it is `"RYRY"`.
+Rewrite each character to the representative character of its code under `Alphabet`. This is what the search does internally to the query, and it is exposed so that callers can see exactly what the library compares — under `DnaAlphabet`, `canonicalize<DnaAlphabet>("acgu")` is `"ACGT"`, and under `RyAlphabet` it is `"RYRY"`.
 
 Two strings have distance 0 if and only if their canonical forms are equal.
 
-`canonicalize_inplace` overwrites `n` bytes starting at `data`. The lookup table is a
-compile-time constant with static storage duration, so both functions are safe to call from
-multiple threads.
+`canonicalize_inplace` overwrites `n` bytes starting at `data`. The lookup table is a compile-time constant with static storage duration, so both functions are safe to call from multiple threads.
 
 ## Thread safety
 
-`PatriciaTree` is immutable after construction, so any number of threads may query the same
-tree concurrently, with no external synchronisation.
+`PatriciaTree` is immutable after construction, so any number of threads may query the same tree concurrently, with no external synchronisation.
 
-A `DTPatricia`, on the other hand, keeps its working state in members that its query functions
-modify (none of them is `const`). The same aligner must therefore not be used from several
-threads at once. To query in parallel, create one aligner per thread over the same tree.
+A `DTPatricia`, on the other hand, keeps its working state in members that its query functions modify (none of them is `const`). The same aligner must therefore not be used from several threads at once. To query in parallel, create one aligner per thread over the same tree.
 
 There is no internal parallelism: one query runs on one thread.
 
 ## Exceptions
 
-The library throws only from the cost policy constructors, which raise
-`std::invalid_argument` on non-positive costs, and from `DTPatricia::set_restriction`, which
-raises `std::invalid_argument` when `mask` has the wrong size. Allocation failures from the standard library
-propagate normally. The query functions themselves do not throw.
+The library throws only from the cost policy constructors, which raise `std::invalid_argument` on non-positive costs, and from `DTPatricia::set_restriction`, which raises `std::invalid_argument` when `mask` has the wrong size. Allocation failures from the standard library propagate normally. The query functions themselves do not throw.
