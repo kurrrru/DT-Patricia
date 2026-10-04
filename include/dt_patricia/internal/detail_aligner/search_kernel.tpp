@@ -57,11 +57,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     std::vector<int32_t> expand_scratch;
     std::vector<int32_t> expand_maxj;
 
-    // 再処理の抑止に使う表 (_reached)。状態管理のオーバーヘッドがあるので、探索が育って元が取れる
-    // 見込みが立つまで有効化しない。
-    size_t states_seen = 0;
-    const size_t reached_enable_threshold = _patricia_tree.node_count();
-
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     const uint32_t root = _patricia_tree.root_id();
     wf_history[0].push_back_state(root, 0, -1);
@@ -83,13 +78,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
             }
             if (!any_nonempty) {
                 break;  // すべての履歴が空 → 終了
-            }
-        }
-
-        if (!_reached.enabled()) {
-            states_seen += curr_wf.active_size();
-            if (states_seen > reached_enable_threshold) {
-                _reached.enable();
             }
         }
 
@@ -193,11 +181,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
     internal::WavefrontArray merged_wf_array_d;
     std::vector<int32_t> expand_scratch;
 
-    // _reached_d: D 層の子生成（expand の pending_d 経由）の重複を潰す表。
-    // _reached: M 層の子生成（extend 経由）の重複を潰す表。
-    size_t states_seen = 0;
-    const size_t reached_enable_threshold = _patricia_tree.node_count();
-
     // 初期状態: ルートノードから開始 (i=-1, j=-1, diagonal=0)
     const uint32_t root = _patricia_tree.root_id();
     wf_history_m[0].push_back_state(root, 0, -1);
@@ -234,16 +217,6 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
             }
             if (!any_nonempty) {
                 break;  // すべての履歴が空 → 終了
-            }
-        }
-
-        // reachedとreached_dは必ず同時に有効化される
-        assert(_reached.enabled() == _reached_d.enabled());
-        if (!_reached_d.enabled()) {
-            states_seen += curr_wf_m.active_size();
-            if (states_seen > reached_enable_threshold) {
-                _reached_d.enable();
-                _reached.enable();
             }
         }
 

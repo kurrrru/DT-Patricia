@@ -22,8 +22,6 @@ inline constexpr bool DOMINANCE_AT_EXTEND_ENTRY =
 #endif
 
 // (ノード v, 対角線 d) ごとに「その状態が既に処理済みか」を記録する表。
-// 処理する対角線の数が十分に増えないと状態管理のオーバーヘッドが上回ってしまうため、
-// 既定では無効で、enable() を呼ぶまで判定を行わないようにしている
 //
 // ラベル末尾でのみ判定する既定の設定では、判定地点のoffsetはlabel_len - 1であるため、
 // その状態に到達しているかどうかの1ビットの記録で十分である。
@@ -35,7 +33,8 @@ inline constexpr bool DOMINANCE_AT_EXTEND_ENTRY =
 //   DT_PATRICIA_DOMINANCE_AT_ENTRY   : 1 要素 = 対角線 1 本ぶんの offset
 class ReachedOffsetTable {
  public:
-    // ノード数 0 の表。enable() しない用途（使わない層の表）のためにある。
+    // ノード数 0 の表。使わない層の表（linear の D 層）のためにある。
+    // dominated() / record() を呼んではならない。
     ReachedOffsetTable() = default;
 
     // ノード添字で引く表 (_begin, _radius) をここで確保する。確保はノード数に比例するので、
@@ -48,9 +47,6 @@ class ReachedOffsetTable {
           _begin(parent_path_len.size(), 0),
           _radius(parent_path_len.size(), 0) {}
 
-    // 判定を有効にする。呼ぶまでは dominated() が常に false を返し、record() は何もしない。
-    void enable() noexcept { _enabled = true; }
-
     // クエリで書き換えた箇所だけを戻し、構築直後と同じ状態にする。
     // 費用はこのクエリで区画を確保したノードの数に比例する。
     void reset() noexcept {
@@ -62,20 +58,13 @@ class ReachedOffsetTable {
         // 残すと、次のクエリの最初のノードが前回の最後と同じとき refresh_cache が省かれ、
         // 消した区画を指したまま使ってしまう
         _cached_node = INVALID_NODE;
-        _enabled = false;
     }
 
-    [[nodiscard]] bool enabled() const noexcept { return _enabled; }
-
     // (node_id, diagonal) が記録済みの内容に照らして支配されているか。
-    // 無効のときは常に false を返す。
     // 既定の設定では offset は使われず、記録の有無だけを返す。
     // score はウィンドウの不変条件 |d - L_p(v)| <= s の検査にのみ使う。
     [[nodiscard]] bool dominated(uint32_t node_id, int32_t diagonal, int32_t offset,
                                  int32_t score) {
-        if (!_enabled) {
-            return false;
-        }
         const std::size_t pos = locate(node_id, diagonal, score);
         if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
             return offset <= static_cast<int32_t>(_arena[_cached_begin + pos]);
@@ -85,12 +74,9 @@ class ReachedOffsetTable {
         }
     }
 
-    // (node_id, diagonal) を処理済みとして記録する。無効のときは何もしない。
+    // (node_id, diagonal) を処理済みとして記録する。
     // 既定の設定では offset を無視してビットを立てるだけ。
     void record(uint32_t node_id, int32_t diagonal, int32_t offset, int32_t score) {
-        if (!_enabled) {
-            return;
-        }
         const std::size_t pos = locate(node_id, diagonal, score);
         if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
             _arena[_cached_begin + pos] = static_cast<uint32_t>(offset);
@@ -199,7 +185,6 @@ class ReachedOffsetTable {
         _radius[node_id] = static_cast<uint32_t>(new_radius);
     }
 
-    bool _enabled = false;
     const std::vector<uint32_t> *_center = nullptr;
     std::vector<uint32_t> _arena;
     std::vector<std::size_t> _begin;  // _arenaにおける区間の開始位置。インデックスはnode_id
