@@ -25,6 +25,12 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         return results;
     }
 
+    // 枝刈り用の値 c。制限があれば制限付きのものを読み書きする。
+    const std::vector<uint32_t> &counts = current_counts();
+    if (counts[_patricia_tree.root_id()] == 0) {
+        return results;  // 探索対象が一つもない
+    }
+
     // ここから先で書き換えた状態（c, _reported, reached）は、抜けるときに必ず戻す
     SearchStateGuard state_guard(*this, results);
 
@@ -88,8 +94,8 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 2: DT-Patricia Extend
-        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, _active_counts,
-               _reached, current_score);
+        extend(padded_query, curr_wf, next_wf_array, child_wf_array, buffer, counts, _reached,
+               current_score);
 
         if (upper_bound >= 0) {
             prune_by_upper_bound(curr_wf, subtree_max_lengths, subtree_min_lengths, query_length,
@@ -118,7 +124,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 3: DT-Patricia Expand
-        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, _active_counts,
+        expand(padded_query, wf_history, next_wf_array, curr_idx, history_size, counts,
                expand_scratch, expand_maxj);
 
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
@@ -151,6 +157,12 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 
     if (_patricia_tree.empty()) {
         return results;
+    }
+
+    // 枝刈り用の値 c。制限があれば制限付きのものを読み書きする。
+    const std::vector<uint32_t> &counts = current_counts();
+    if (counts[_patricia_tree.root_id()] == 0) {
+        return results;  // 探索対象が一つもない
     }
 
     // ここから先で書き換えた状態（c, _reported, reached）は、抜けるときに必ず戻す
@@ -236,8 +248,8 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         }
 
         // Algorithm 2: DT-Patricia Extend
-        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, _active_counts,
-               _reached, current_score);
+        extend(padded_query, curr_wf_m, next_wf_array_m, child_wf_array, buffer, counts, _reached,
+               current_score);
         if (upper_bound >= 0) {
             prune_by_upper_bound<true>(next_wf_array_d, curr_wf_m, next_wf_array_i,
                                        _patricia_tree.get_subtree_max_lengths(),
@@ -268,8 +280,8 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
 
         // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i, next_wf_array_d,
-               next_wf_array_m, next_wf_array_i, curr_idx, history_size, _active_counts, buffer,
-               pending_d, merged_wf_array_d, expand_scratch, _reached_d, current_score);
+               next_wf_array_m, next_wf_array_i, curr_idx, history_size, counts, buffer, pending_d,
+               merged_wf_array_d, expand_scratch, _reached_d, current_score);
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(

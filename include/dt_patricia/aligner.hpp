@@ -38,6 +38,7 @@ class DTPatricia {
     DTPatricia(const tree_type &patricia_tree, CostType cost = CostType())
         : _patricia_tree(patricia_tree),
           _cost(cost),
+          _target_count(patricia_tree.string_count()),
           _reported(patricia_tree.string_count(), 0),
           _reached(patricia_tree.get_parent_path_lengths()),
           _reached_d(CostType::is_linear
@@ -61,17 +62,33 @@ class DTPatricia {
     }
 
     // =========================================================
-    // 3. アラインメントAPI
+    // 3. 制限付き探索の設定
     // =========================================================
 
+    // 以降の探索の対象を、mask[id] != 0 である文字列 ID に限る。
+    // mask の長さは string_count() と等しくなければならない（違えば std::invalid_argument）。
+    // 費用は O(N)。初回だけノード数に比例する確保が加わる。
+    void set_restriction(const std::vector<uint8_t> &mask);
+
+    // 制限を解除し、全 ID を探索対象に戻す。費用は O(1)。
+    // 制限で書き換えた箇所は残すが、制限がなければ読まれない。次の set_restriction で消す。
+    void clear_restriction() noexcept;
+
+    [[nodiscard]] bool restricted() const noexcept { return _restricted; }
+
+    // =========================================================
+    // 4. アラインメントAPI
+    // =========================================================
+    // 制限が設定されていれば、その対象の中だけを探索する。
+
     std::vector<AlignmentResult> ed_to_all(const std::string &query) {
-        std::size_t max_results = _patricia_tree.string_count();
+        std::size_t max_results = _target_count;
         return search_kernel(
             query, [max_results](int, const auto &r) { return r.size() == max_results; }, -1);
     }
 
     std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) {
-        std::size_t max_results = _patricia_tree.string_count();
+        std::size_t max_results = _target_count;
         return search_kernel(
             query,
             [k, max_results](int current_score, const auto &r) {
@@ -81,8 +98,8 @@ class DTPatricia {
     }
 
     std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) {
-        if (p > _patricia_tree.string_count()) {
-            p = _patricia_tree.string_count();
+        if (p > _target_count) {
+            p = _target_count;
         }
         return search_kernel(query, [p](int, const auto &r) { return r.size() >= p; }, -1);
     }
@@ -102,13 +119,24 @@ class DTPatricia {
     CostType _cost;
 
     // 枝刈り用の値 c[v]。
-    //   c[v] = (v で終わる ID のうち未報告のものの数) + (c[u] > 0 である子 u の数)
-    // 子には終端コードで入る子を含めない。c[v] > 0 と「v の部分木に未報告の ID がある」は
-    // 同値なので、枝刈りは 0 かどうかだけを見る。探索の外では構築直後の値を保つ。
-    std::vector<uint32_t> _active_counts;
+    //   c[v] = (v で終わる ID のうち、探索対象で未報告のものの数) + (c[u] > 0 である子 u の数)
+    // 子には終端コードで入る子を含めない。c[v] > 0 と「v の部分木に探索対象で未報告の ID がある」
+    // は同値なので、枝刈りは 0 かどうかだけを見る。探索の外では構築直後（制限付きなら設定直後）の
+    // 値を保つ。
+    std::vector<uint32_t> _active_counts;  // 制限なしのときの c
+    // 制限付きのときの c。_restricted が false のときは読まれない。
+    // _restricted_nodes に載っていないノードは常に 0。
+    std::vector<uint32_t> _restricted_counts;
+    std::vector<uint32_t> _restricted_nodes;  // 直近の制限で _restricted_counts を書き換えたノード
+    bool _restricted = false;
+    uint32_t _target_count;  // 探索対象の ID の数
 
     // ID ごとに、この探索で報告済みなら 1。探索の外では全要素 0。
     std::vector<uint8_t> _reported;
+    // ID ごとに、直近の制限で許可されていれば 0 以外。_restricted が false のときは読まれない。
+    // c だけでは、許可した ID の祖先にあたるノードで終わる、許可していない ID を除けないので、
+    // 報告時にこれで絞る。
+    std::vector<uint8_t> _allowed;
 
     // 探索中に書き換えた c の（ノード, 書き換え前の値）。探索後に逆順に書き戻す。
     std::vector<std::pair<uint32_t, uint32_t>> _count_undo;
@@ -142,8 +170,15 @@ class DTPatricia {
 
     void init_active_counts();
     void restore_search_state(const std::vector<AlignmentResult> &results) noexcept;
+    void discard_restriction() noexcept;
+    [[nodiscard]] bool restricted_counts_match_definition() const;
 
-    // ノード node_id で終わる ID のうち未報告のものを score で報告し、c を更新する。
+    // 探索が読み書きする c。制限があれば制限付きのもの。
+    [[nodiscard]] std::vector<uint32_t> &current_counts() noexcept {
+        return _restricted ? _restricted_counts : _active_counts;
+    }
+
+    // ノード node_id で終わる ID のうち、探索対象で未報告のものを score で報告し、c を更新する。
     void report_strings_at(uint32_t node_id, int32_t score, std::vector<AlignmentResult> &results);
 
     void prune_by_upper_bound(internal::WavefrontArray &wf_array,
@@ -194,5 +229,6 @@ class DTPatricia {
 #include <dt_patricia/internal/detail_aligner/expand.tpp>
 #include <dt_patricia/internal/detail_aligner/extend.tpp>
 #include <dt_patricia/internal/detail_aligner/pruning.tpp>
+#include <dt_patricia/internal/detail_aligner/restriction.tpp>
 #include <dt_patricia/internal/detail_aligner/search_kernel.tpp>
 #include <dt_patricia/internal/detail_aligner/search_state.tpp>

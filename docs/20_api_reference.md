@@ -140,6 +140,7 @@ valid node id; passing `0` or an out-of-range id is undefined behaviour except w
 [[nodiscard]] std::string_view get_label(uint32_t node_id) const noexcept;
 [[nodiscard]] uint32_t get_label_length(uint32_t node_id) const noexcept;
 [[nodiscard]] std::span<const uint32_t> get_string_id(uint32_t node_id) const noexcept;
+[[nodiscard]] uint32_t get_string_node(uint32_t string_id) const noexcept;
 ```
 
 - **`transition(node_id, ch)`** — Follows the edge leaving `node_id` whose first character is
@@ -159,6 +160,11 @@ valid node id; passing `0` or an out-of-range id is undefined behaviour except w
 - **`get_string_id(node_id)`** — The ids of the dictionary strings ending at this leaf. Returns
   an empty span if `node_id` is not a leaf. More than one id is returned when the dictionary
   contained duplicates.
+- **`get_string_node(string_id)`** — The id of the node at which string `string_id` ends, i.e.
+  the node with an outgoing `CODE_TERM` edge whose leaf holds `string_id`. It is the parent of
+  that leaf, not the leaf itself, so `get_string_id(get_string_node(id))` is always empty; the
+  relation is `id ∈ get_string_id(transition(get_string_node(id), CODE_TERM))`. `string_id` must
+  be less than `string_count()`.
 
 ### Precomputed subtree statistics
 
@@ -308,6 +314,31 @@ automatically and they are indistinguishable to the caller.
 Sections 6 and 7 of [`examples/basic_example.cpp`](../examples/basic_example.cpp) show a
 timeout predicate and a combined top-k-with-threshold predicate.
 
+### Restricted search
+
+```cpp
+void set_restriction(const std::vector<uint8_t> &mask);
+void clear_restriction() noexcept;
+[[nodiscard]] bool restricted() const noexcept;
+```
+
+Limits the search to a subset of the dictionary strings.
+
+- **`set_restriction(mask)`** — Restricts subsequent queries to the string ids with
+  `mask[id] != 0`. `mask` must have exactly `string_count()` elements; otherwise
+  `std::invalid_argument` is thrown. The cost is proportional to the number of strings, plus, on
+  the first call only, an allocation proportional to the number of nodes in the tree. The
+  restriction stays in effect until the next call to `set_restriction` or `clear_restriction`,
+  so its cost is paid once however many queries run under it. An existing restriction is
+  replaced.
+- **`clear_restriction()`** — Removes the restriction, so that every id is searched again. Runs
+  in constant time.
+- **`restricted()`** — `true` if a restriction is in effect.
+
+While a restriction is in effect, all four query functions return allowed ids only. The stop
+condition of `ed_to_all` and the clamping of `p` in `ed_pth_smallest` use the number of allowed
+ids instead of `string_count()`. If no id is allowed, a query returns an empty result at once.
+
 ## Query result semantics
 
 These hold for all four query functions.
@@ -432,5 +463,6 @@ There is no internal parallelism: one query runs on one thread.
 ## Exceptions
 
 The library throws only from the cost policy constructors, which raise
-`std::invalid_argument` on non-positive costs. Allocation failures from the standard library
+`std::invalid_argument` on non-positive costs, and from `DTPatricia::set_restriction`, which
+raises `std::invalid_argument` when `mask` has the wrong size. Allocation failures from the standard library
 propagate normally. The query functions themselves do not throw.

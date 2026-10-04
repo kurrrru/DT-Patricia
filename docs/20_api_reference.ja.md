@@ -119,6 +119,7 @@ inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_c
 [[nodiscard]] std::string_view get_label(uint32_t node_id) const noexcept;
 [[nodiscard]] uint32_t get_label_length(uint32_t node_id) const noexcept;
 [[nodiscard]] std::span<const uint32_t> get_string_id(uint32_t node_id) const noexcept;
+[[nodiscard]] uint32_t get_string_node(uint32_t string_id) const noexcept;
 ```
 
 - **`transition(node_id, ch)`** — `node_id` から出る辺のうち先頭文字が `ch` であるものをたどり、到達するノードの ID を返す。そのような辺がなければ `0` を返す。`char` を取るオーバーロードは `ch` をまず `CHAR_TO_CODE` で符号化するので、アルファベットの畳み込み規則（大文字小文字、`U`/`T`、キャッチオール）が適用される。`uint8_t` を取るオーバーロードは、符号化済みのコードを受け取る。
@@ -127,6 +128,7 @@ inline static constexpr std::array<uint8_t, 256> CHAR_TO_CODE = Alphabet::make_c
 - **`is_terminal(node_id)`** — 辞書中の文字列がこのノードで終わる場合、すなわち `CODE_TERM` の出辺を持つ場合に `true`。ただし string ID は終端ノード自身ではなく、その辺の先の葉に紐づいている点に注意する（`get_string_id(transition(node_id, CODE_TERM))`）。
 - **`get_label(node_id)`** — `node_id` に**入ってくる**辺のラベル。返されるビューは木が保持する記憶域を指し、木が生存していてムーブ元になっていない限り有効である。
 - **`get_string_id(node_id)`** — この葉で終わる辞書文字列の ID 群。`node_id` が葉でない場合は空の span を返す。辞書に重複があった場合は複数の ID が返る。
+- **`get_string_node(string_id)`** — 文字列 `string_id` が終わるノード、すなわち `CODE_TERM` の出辺を持ち、その先の葉に `string_id` が紐づいているノードの ID。返るのはその葉ではなく葉の親なので、`get_string_id(get_string_node(id))` は常に空である。成り立つ関係は `id ∈ get_string_id(transition(get_string_node(id), CODE_TERM))` である。`string_id` は `string_count()` 未満でなければならない。
 
 ### 事前計算された部分木の統計
 
@@ -244,6 +246,22 @@ std::vector<AlignmentResult> search_kernel(const std::string &query,
 
 タイムアウトを表す述語と、top-k と閾値を組み合わせた述語の実例は [`examples/basic_example.cpp`](../examples/basic_example.cpp) の 6 節と 7 節にある。
 
+### 制限付き探索
+
+```cpp
+void set_restriction(const std::vector<uint8_t> &mask);
+void clear_restriction() noexcept;
+[[nodiscard]] bool restricted() const noexcept;
+```
+
+探索の対象を、辞書の文字列の一部に限る。
+
+- **`set_restriction(mask)`** — 以降のクエリの対象を、`mask[id] != 0` である文字列 ID に限る。`mask` の長さは `string_count()` と等しくなければならず、違えば `std::invalid_argument` を送出する。費用は文字列数に比例し、初回だけ木のノード数に比例する確保が加わる。設定は次に `set_restriction` か `clear_restriction` を呼ぶまで有効であり、同じ制限で何回クエリを投げても設定の費用は一度しかかからない。すでに制限があれば置き換える。
+- **`clear_restriction()`** — 制限を解除し、全 ID を対象に戻す。費用は定数である。
+- **`restricted()`** — 制限が設定されていれば `true`。
+
+制限があるとき、4 つのクエリ関数はいずれも許可された ID だけを返す。`ed_to_all` の停止と `ed_pth_smallest` の `p` の切り詰めには、`string_count()` の代わりに許可された ID の数が使われる。許可された ID が 1 つもなければ、クエリは直ちに空の結果を返す。
+
 ## クエリ結果のセマンティクス
 
 以下は 4 つのクエリ関数すべてに当てはまる。
@@ -345,4 +363,4 @@ void canonicalize_inplace(char *data, std::size_t n) noexcept;
 
 ## 例外
 
-ライブラリが例外を投げるのは、正でないコストに対して `std::invalid_argument` を送出するコストポリシーのコンストラクタだけである。標準ライブラリからの確保失敗は通常どおり伝播する。クエリ関数自体は例外を投げない。
+ライブラリが例外を投げるのは、正でないコストに対して `std::invalid_argument` を送出するコストポリシーのコンストラクタと、長さの合わない `mask` に対して `std::invalid_argument` を送出する `DTPatricia::set_restriction` だけである。標準ライブラリからの確保失敗は通常どおり伝播する。クエリ関数自体は例外を投げない。

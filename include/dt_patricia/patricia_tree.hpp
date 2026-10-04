@@ -100,6 +100,11 @@ class PatriciaTree {
         return std::span<const uint32_t>(_string_ids.data() + offset, count);
     }
 
+    // 文字列 string_id で終わるノード（終端コードで入る子の親）を返す
+    [[nodiscard]] inline uint32_t get_string_node(uint32_t string_id) const noexcept {
+        return _string_node[string_id];
+    }
+
     [[nodiscard]] inline uint32_t string_count() const noexcept { return _size; }
 
     [[nodiscard]] inline uint32_t node_count() const noexcept {
@@ -156,6 +161,7 @@ class PatriciaTree {
     std::vector<uint32_t> _string_ids_offset;  // index=ノードID, 値=_string_idsプール内の開始位置
     std::vector<uint32_t> _string_ids_count;  // index=ノードID, 値=そのノードに紐づくIDの個数
     std::vector<uint32_t> _string_ids;  // 全てのIDを隙間なく詰め込んだ巨大配列
+    std::vector<uint32_t> _string_node;  // index=単語ID, 値=その単語で終わるノードID
 
     std::vector<uint32_t>
         _subtree_counts;  // index=ノードID, 値=そのノードを根とする部分木に含まれる単語数

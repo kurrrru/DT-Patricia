@@ -39,7 +39,7 @@ void DTPatricia<Alphabet, CostType>::report_strings_at(uint32_t node_id, int32_t
     }
     uint32_t reported = 0;
     for (const uint32_t id : _patricia_tree.get_string_id(term_node)) {
-        if (_reported[id] != 0) {
+        if (_reported[id] != 0 || (_restricted && _allowed[id] == 0)) {
             continue;
         }
         // results に積んでからフラグを立てる。逆順だと push_back が例外を投げたとき、
@@ -52,16 +52,17 @@ void DTPatricia<Alphabet, CostType>::report_strings_at(uint32_t node_id, int32_t
         return;
     }
 
+    std::vector<uint32_t> &counts = current_counts();
     const uint32_t root = _patricia_tree.root_id();
-    _count_undo.emplace_back(node_id, _active_counts[node_id]);
-    assert(_active_counts[node_id] >= reported);
-    _active_counts[node_id] -= reported;
+    _count_undo.emplace_back(node_id, counts[node_id]);
+    assert(counts[node_id] >= reported);
+    counts[node_id] -= reported;
     uint32_t v = node_id;
-    while (_active_counts[v] == 0 && v != root) {
+    while (counts[v] == 0 && v != root) {
         v = _patricia_tree.get_parent(v);
-        _count_undo.emplace_back(v, _active_counts[v]);
-        assert(_active_counts[v] > 0);
-        _active_counts[v] -= 1;
+        _count_undo.emplace_back(v, counts[v]);
+        assert(counts[v] > 0);
+        counts[v] -= 1;
     }
 }
 
@@ -74,8 +75,9 @@ void DTPatricia<Alphabet, CostType>::restore_search_state(
         _reported[r.string_id] = 0;
     }
     // 同じノードを複数回書き換えた場合に最初の値が最後に書き戻されるよう、逆順にたどる
+    std::vector<uint32_t> &counts = current_counts();
     for (auto it = _count_undo.rbegin(); it != _count_undo.rend(); ++it) {
-        _active_counts[it->first] = it->second;
+        counts[it->first] = it->second;
     }
     _count_undo.clear();
     _reached.reset();
