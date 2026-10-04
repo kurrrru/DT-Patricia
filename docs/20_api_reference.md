@@ -207,8 +207,13 @@ DTPatricia &operator=(DTPatricia &&) noexcept = delete;
 ```
 
 The aligner stores a **reference** to the tree and a **copy** of the cost object. The tree
-must outlive the aligner. Construction is cheap: no per-aligner index is built, so it is
-possible to create several aligners with different cost models over one tree.
+must outlive the aligner. No per-aligner index is built, so it is possible to create several
+aligners with different cost models over one tree.
+
+The aligner allocates its per-query working state once, at construction, and reuses it across
+queries. Its size is proportional to the number of nodes in the tree and the number of strings.
+This keeps initialisation proportional to the number of stored strings out of the cost of each
+query.
 
 Neither copyable nor movable, precisely because it holds that reference.
 
@@ -234,7 +239,7 @@ The tree the aligner was constructed over.
 ### `ed_to_all`
 
 ```cpp
-std::vector<AlignmentResult> ed_to_all(const std::string &query) const;
+std::vector<AlignmentResult> ed_to_all(const std::string &query);
 ```
 
 Returns the distance from `query` to **every** string in the dictionary — exactly
@@ -245,7 +250,7 @@ No threshold is available to prune with, so this is the most expensive of the th
 ### `ed_within_k`
 
 ```cpp
-std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const;
+std::vector<AlignmentResult> ed_within_k(const std::string &query, int k);
 ```
 
 Returns every dictionary string whose distance from `query` is **at most `k`**, boundary
@@ -260,7 +265,7 @@ Because a distance level is always completed before the stop condition is evalua
 ### `ed_pth_smallest`
 
 ```cpp
-std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) const;
+std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p);
 ```
 
 Returns the `p` nearest dictionary strings. `p` is clamped to `string_count()`. For the same reason as above, `p == 0` returns the exact matches rather than nothing.
@@ -278,7 +283,7 @@ No pruning bound is used, because the cut-off distance is not known in advance.
 template <typename StopPredicate>
 std::vector<AlignmentResult> search_kernel(const std::string &query,
                                            StopPredicate stop_predicate,
-                                           int upper_bound = -1) const;
+                                           int upper_bound = -1);
 ```
 
 The engine the other three queries are thin wrappers around. Use it when you need a stopping
@@ -415,10 +420,12 @@ multiple threads.
 
 ## Thread safety
 
-`PatriciaTree` is immutable after construction, and every query function on `DTPatricia` is
-`const` and keeps all of its working state in local variables. Any number of threads may
-therefore query the same tree and even the same aligner concurrently, with no external
-synchronisation.
+`PatriciaTree` is immutable after construction, so any number of threads may query the same
+tree concurrently, with no external synchronisation.
+
+A `DTPatricia`, on the other hand, keeps its working state in members that its query functions
+modify (none of them is `const`). The same aligner must therefore not be used from several
+threads at once. To query in parallel, create one aligner per thread over the same tree.
 
 There is no internal parallelism: one query runs on one thread.
 

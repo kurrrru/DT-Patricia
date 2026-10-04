@@ -169,7 +169,9 @@ DTPatricia &operator=(DTPatricia &&) noexcept = delete;
 ~DTPatricia() = default;
 ```
 
-アライナは木への**参照**と、コストオブジェクトの**コピー**を保持する。木はアライナより長く生存していなければならない。構築は軽量であり、アライナごとのインデックスは作られない。したがって、1 つの木の上に異なるコストモデルのアライナを複数作ることが可能である。
+アライナは木への**参照**と、コストオブジェクトの**コピー**を保持する。木はアライナより長く生存していなければならない。アライナごとのインデックスは作られないので、1 つの木の上に異なるコストモデルのアライナを複数作ることが可能である。
+
+アライナは、クエリの作業領域を構築時に一度だけ確保して、クエリ間で使い回す。作業領域の大きさは木のノード数と文字列数に比例する。こうすることで、1 回のクエリの費用が、登録された文字列の数に比例する初期化を含まなくなる。
 
 その参照を保持しているがゆえに、コピーもムーブもできない。
 
@@ -193,7 +195,7 @@ using tree_type     = PatriciaTree<Alphabet>;
 ### `ed_to_all`
 
 ```cpp
-std::vector<AlignmentResult> ed_to_all(const std::string &query) const;
+std::vector<AlignmentResult> ed_to_all(const std::string &query);
 ```
 
 `query` から辞書中の**すべての**文字列までの距離を返す。結果はちょうど `string_count()` 件であり、木が空なら 0 件である。
@@ -203,7 +205,7 @@ std::vector<AlignmentResult> ed_to_all(const std::string &query) const;
 ### `ed_within_k`
 
 ```cpp
-std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const;
+std::vector<AlignmentResult> ed_within_k(const std::string &query, int k);
 ```
 
 `query` からの距離が **`k` 以下**（境界値を含む）である辞書文字列をすべて返す。`k` は編集操作の回数ではなくアライナのコストモデルにおけるコストなので、`LinearGapCost(1, 3)` のもとではギャップ 1 つですでにコスト 3 である。
@@ -215,7 +217,7 @@ std::vector<AlignmentResult> ed_within_k(const std::string &query, int k) const;
 ### `ed_pth_smallest`
 
 ```cpp
-std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p) const;
+std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p);
 ```
 
 最も近い `p` 件の辞書文字列を返す。`p` は `string_count()` に切り詰められる。上と同じ理由により、`p == 0` は何も返さず終わるのではなく完全一致を返す。
@@ -230,7 +232,7 @@ std::vector<AlignmentResult> ed_pth_smallest(const std::string &query, size_t p)
 template <typename StopPredicate>
 std::vector<AlignmentResult> search_kernel(const std::string &query,
                                            StopPredicate stop_predicate,
-                                           int upper_bound = -1) const;
+                                           int upper_bound = -1);
 ```
 
 他の 3 つのクエリが薄くラップしているエンジン本体。それらでは表現できない停止規則が必要なときに使う。
@@ -335,7 +337,9 @@ void canonicalize_inplace(char *data, std::size_t n) noexcept;
 
 ## スレッド安全性
 
-`PatriciaTree` は構築後に変更されない。また `DTPatricia` のクエリ関数はいずれも `const` であり、作業状態をすべてローカル変数に持つ。したがって、同じ木、さらには同じアライナに対して、外部同期なしに任意個のスレッドから同時にクエリを投げてよい。
+`PatriciaTree` は構築後に変更されないので、同じ木に対して外部同期なしに任意個のスレッドから同時にクエリを投げてよい。
+
+一方、`DTPatricia` は作業領域をメンバに持ち、クエリ関数はそれを書き換える（いずれも `const` ではない）。したがって、同じアライナを複数のスレッドから同時に使ってはならない。並列にクエリを投げる場合は、同じ木の上にスレッドごとに 1 つずつアライナを作る。
 
 内部での並列化は行っていない。1 つのクエリは 1 つのスレッドで実行される。
 

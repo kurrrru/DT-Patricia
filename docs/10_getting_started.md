@@ -260,7 +260,9 @@ These apply to both the dictionary and the query:
 
 The tree holds the dictionary; the aligner holds a **reference** to the tree. The tree must
 therefore outlive every aligner built over it. Building one tree and creating several
-aligners over it (with different cost models, say) is fine and cheap.
+aligners over it (with different cost models, say) is fine. Each aligner allocates working
+state proportional to the number of nodes in the tree and the number of strings, and
+modifies it during a query, so to query in parallel, create one aligner per thread.
 
 ## 8. Where to go next
 
