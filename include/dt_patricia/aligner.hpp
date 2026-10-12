@@ -42,8 +42,11 @@ class DTPatricia {
           _reported(patricia_tree.string_count(), 0),
           _reached(patricia_tree.get_parent_path_lengths()),
           _reached_d(CostType::is_linear
-                         ? internal::ReachedOffsetTable()
-                         : internal::ReachedOffsetTable(patricia_tree.get_parent_path_lengths())) {
+                         ? internal::ReachedGapTable()
+                         : internal::ReachedGapTable(patricia_tree.get_parent_path_lengths())),
+          _reached_i(CostType::is_linear || !internal::REACH_GAP
+                         ? internal::ReachedGapTable()
+                         : internal::ReachedGapTable(patricia_tree.get_parent_path_lengths())) {
         init_active_counts();
     }
     DTPatricia() = delete;
@@ -142,7 +145,8 @@ class DTPatricia {
     std::vector<std::pair<uint32_t, uint32_t>> _count_undo;
 
     internal::ReachedOffsetTable _reached;  // M 層（linear では唯一）の子生成の重複を潰す表
-    internal::ReachedOffsetTable _reached_d;  // affine の D 層の子生成の重複を潰す表
+    internal::ReachedGapTable _reached_d;  // affine の D 層の表（REACH_GAP で役割が変わる）
+    internal::ReachedGapTable _reached_i;  // affine の I 層の表（REACH_GAP 定義時のみ使う）
 
     // 探索で書き換えた状態を、探索前に戻す。例外で探索を抜けた場合もデストラクタで戻す。
     class SearchStateGuard {
@@ -219,8 +223,8 @@ class DTPatricia {
         const std::vector<uint32_t> &active_counts,
         std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
         internal::WavefrontArray &pending_d, internal::WavefrontArray &merged_wf_array_d,
-        std::vector<int32_t> &expand_scratch, internal::ReachedOffsetTable &reached_d,
-        int32_t current_score) const
+        std::vector<int32_t> &expand_scratch, internal::ReachedGapTable &reached_d,
+        internal::ReachedGapTable &reached_i, int32_t current_score) const
         requires(!CostType::is_linear);
 };
 

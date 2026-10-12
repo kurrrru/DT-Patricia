@@ -82,6 +82,7 @@ void DTPatricia<Alphabet, CostType>::restore_search_state(
     _count_undo.clear();
     _reached.reset();
     _reached_d.reset();
+    _reached_i.reset();
 }
 
 }  // namespace dt_patricia
