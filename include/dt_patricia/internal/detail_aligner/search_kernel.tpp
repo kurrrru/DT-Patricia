@@ -254,7 +254,7 @@ std::vector<AlignmentResult> DTPatricia<Alphabet, CostType>::search_kernel(
         // Algorithm 3: DT-Patricia Expand
         expand(padded_query, wf_history_d, wf_history_m, wf_history_i, next_wf_array_d,
                next_wf_array_m, next_wf_array_i, curr_idx, history_size, counts, buffer, pending_d,
-               merged_wf_array_d, expand_scratch, _reached_d, current_score);
+               merged_wf_array_d, expand_scratch, _reached_d, _reached_i, current_score);
         uint32_t next_idx = internal::increment_mod(curr_idx, history_size);
         if (upper_bound >= 0) {
             prune_by_upper_bound<false>(

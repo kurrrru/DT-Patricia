@@ -294,8 +294,8 @@ void DTPatricia<Alphabet, CostType>::expand(
     int32_t curr_idx, size_t history_size, const std::vector<uint32_t> &active_counts,
     std::array<internal::WavefrontArray, PatriciaTree<Alphabet>::CODE_MAX> &pending_d_buffer,
     internal::WavefrontArray &pending_d, internal::WavefrontArray &merged_wf_array_d,
-    std::vector<int32_t> & /*expand_scratch*/, internal::ReachedOffsetTable &reached_d,
-    int32_t current_score) const
+    std::vector<int32_t> & /*expand_scratch*/, internal::ReachedGapTable &reached_d,
+    internal::ReachedGapTable &reached_i, int32_t current_score) const
     requires(!CostType::is_linear)
 {
     // pending_d_buffer は呼び出し側で extend の子伝搬バッファと同じ配列を使い回している。
@@ -310,6 +310,24 @@ void DTPatricia<Alphabet, CostType>::expand(
     next_wf_array_m.clear_logical_size();
     next_wf_array_i.clear_logical_size();
     const int32_t query_length = static_cast<int32_t>(query.length());
+    const int32_t next_score = current_score + 1;
+
+    // REACH_GAP 定義時、スコア next_score で新しく作る I/D 状態 (v, d, j) を判定する。
+    // 同じ (v, d) で既に残した offset 以下なら支配されているので false を返し、
+    // そうでなければ offset を記録して true を返す。未定義時は常に true。
+    auto keep_gap_state = [next_score]([[maybe_unused]] internal::ReachedGapTable &table,
+                                       [[maybe_unused]] uint32_t nid, [[maybe_unused]] int32_t diag,
+                                       [[maybe_unused]] int32_t off) {
+        if constexpr (internal::REACH_GAP) {
+            if (table.dominated(nid, diag, off, next_score)) {
+                return false;
+            }
+            table.record(nid, diag, off, next_score);
+        } else {
+            (void)next_score;
+        }
+        return true;
+    };
 
     const uint32_t next_idx = internal::add_mod(curr_idx, 1, history_size);
     // current_score + 1 に対応する internal::WavefrontArray を構築する
@@ -422,10 +440,17 @@ void DTPatricia<Alphabet, CostType>::expand(
                     const int32_t current_diag = internal::WavefrontArray::calc_diag_from_vd(st_vd);
                     const int32_t next_diag = current_diag + st_offset;
 
-                    const bool already_expanded =
-                        reached_d.dominated(node_id, current_diag, st_offset, current_score);
+                    // REACH_GAP 定義時は、ラベル末尾の D 状態も作った時点で判定済みであり、
+                    // (v, d) ごとに一度しか残らないので、ここでは判定しない
+                    bool already_expanded = false;
+                    if constexpr (!internal::REACH_GAP) {
+                        already_expanded =
+                            reached_d.dominated(node_id, current_diag, st_offset, current_score);
+                    }
                     if (!already_expanded) {
-                        reached_d.record(node_id, current_diag, st_offset, current_score);
+                        if constexpr (!internal::REACH_GAP) {
+                            reached_d.record(node_id, current_diag, st_offset, current_score);
+                        }
                         for (uint8_t code = 1; code <= tree_type::CODE_MAX; ++code) {
                             uint32_t child = _patricia_tree.transition(node_id, code);
                             if (child != 0 && active_counts[child] > 0) {
@@ -460,7 +485,7 @@ void DTPatricia<Alphabet, CostType>::expand(
             }
 
             // 3. 結果の登録
-            if (max_j >= -1) {
+            if (max_j >= -1 && keep_gap_state(reached_d, node_id, min_diag, max_j)) {
                 next_wf_array_d.push_back_unchecked(
                     internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
             }
@@ -519,7 +544,7 @@ void DTPatricia<Alphabet, CostType>::expand(
             }
 
             // 3. 結果の登録
-            if (max_j >= -1) {
+            if (max_j >= -1 && keep_gap_state(reached_i, node_id, min_diag, max_j)) {
                 next_wf_array_i.push_back_unchecked(
                     internal::WavefrontArray::calc_vd(node_id, min_diag), max_j);
             }
@@ -554,6 +579,15 @@ void DTPatricia<Alphabet, CostType>::expand(
         size_t len1 = next_wf_array_d.active_size();
         size_t len2 = pending_d.active_size();
 
+        // 子ノードへ遷移した D 状態は、ノード内の D 状態と vd が衝突しないものだけを
+        // ここで判定する。 衝突する場合は、ノード内の D 状態（offset >= 0) が
+        // 判定・記録済みで、遷移分（offset 0） 以上なので勝つ。ノード内の D 状態が
+        // 支配されて捨てられていれば衝突は起きず、遷移分の offset 0
+        // はそれ以下なので、ここで同じく捨てられる。
+        auto keep_pending = [&](uint64_t vd, int32_t off) {
+            return keep_gap_state(reached_d, internal::WavefrontArray::calc_node_id_from_vd(vd),
+                                  internal::WavefrontArray::calc_diag_from_vd(vd), off);
+        };
         // 出力件数は高々 len1 + len2（vd 衝突時は 1 件に畳まれるのでこれが厳密な上限）
         merged_wf_array_d.reserve_capacity(len1 + len2);
 
@@ -561,7 +595,9 @@ void DTPatricia<Alphabet, CostType>::expand(
             if (idx1 == len1) {
                 const uint64_t st_vd = pending_d.get_vd(idx2);
                 const int32_t st_offset = pending_d.get_offset(idx2);
-                merged_wf_array_d.push_back_unchecked(st_vd, st_offset);
+                if (keep_pending(st_vd, st_offset)) {
+                    merged_wf_array_d.push_back_unchecked(st_vd, st_offset);
+                }
                 ++idx2;
             } else if (idx2 == len2) {
                 const uint64_t st_vd = next_wf_array_d.get_vd(idx1);
@@ -578,7 +614,9 @@ void DTPatricia<Alphabet, CostType>::expand(
                     merged_wf_array_d.push_back_unchecked(st1_vd, st1_offset);
                     ++idx1;
                 } else if (st2_vd < st1_vd) {
-                    merged_wf_array_d.push_back_unchecked(st2_vd, st2_offset);
+                    if (keep_pending(st2_vd, st2_offset)) {
+                        merged_wf_array_d.push_back_unchecked(st2_vd, st2_offset);
+                    }
                     ++idx2;
                 } else {
                     // vd が衝突した場合、offset が大きい（より遠くまで進んでいる）波面を採用

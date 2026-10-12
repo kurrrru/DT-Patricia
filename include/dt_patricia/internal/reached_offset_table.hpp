@@ -21,26 +21,49 @@ inline constexpr bool DOMINANCE_AT_EXTEND_ENTRY =
     false;
 #endif
 
+// affine の I/D 層で、どの状態を支配判定するかの切り替え。
+//
+//   既定（false）: D 層の、ラベル末尾から子ノードへ遷移する状態だけを判定する
+//   DT_PATRICIA_REACH_GAP 定義時（true）: I 層と D 層で新しく作る全状態を判定し、
+//     同じ (v, d) で既に残した offset 以下の状態を捨てる。木対角線ごとに残る I/D 状態が
+//     m_v + 1 個以下になり、affine でも unit/linear と同じ計算量の上界が成り立つ。
+//     ラベル末尾の D 状態も (v, d) ごとに一度しか残らないので、末尾での判定は行わない。
+//
+// M 層は設定によらず常に判定する。
+inline constexpr bool REACH_GAP =
+#ifdef DT_PATRICIA_REACH_GAP
+    true;
+#else
+    false;
+#endif
+
 // (ノード v, 対角線 d) ごとに「その状態が既に処理済みか」を記録する表。
 //
-// ラベル末尾でのみ判定する既定の設定では、判定地点のoffsetはlabel_len - 1であるため、
+// ラベル末尾でのみ判定する使い方（M 層の既定の設定と、REACH_GAP 未定義時の D 層）では、
+// 判定地点のoffsetはlabel_len - 1であるため、
 // その状態に到達しているかどうかの1ビットの記録で十分である。
-// 一方、extend の入口で判定する設定では、状態ごとに異なる到達点を比べる必要があるため、
-// 32 ビットの offset を保持しなければならない。
-// この違いは、メンバ変数_arenaの各要素の使い方の違いによって実現する。
+// 一方、状態ごとに異なる到達点を比べる使い方（DOMINANCE_AT_EXTEND_ENTRY 定義時の M 層と、
+// REACH_GAP 定義時の I/D 層）では、32 ビットの offset を保持しなければならない。
+// どちらを持つかはテンプレート引数 STORE_OFFSET で選び、
+// その違いは、メンバ変数_arenaの各要素の使い方の違いによって実現する。
 //
-//   既定                             : 1 要素 = 対角線 32 本ぶんのビット
-//   DT_PATRICIA_DOMINANCE_AT_ENTRY   : 1 要素 = 対角線 1 本ぶんの offset
-class ReachedOffsetTable {
+//   STORE_OFFSET = false : 1 要素 = 対角線 32 本ぶんのビット
+//   STORE_OFFSET = true  : 1 要素 = 対角線 1 本ぶんの offset
+//
+// M 層の表は DOMINANCE_AT_EXTEND_ENTRY に従う（ReachedOffsetTable）。
+// I/D 層の表は REACH_GAP に従う（ReachedGapTable）。
+template <bool STORE_OFFSET>
+class BasicReachedOffsetTable {
  public:
-    // ノード数 0 の表。使わない層の表（linear の D 層）のためにある。
+    // ノード数 0 の表。使わない層の表（linear の D 層と I 層、REACH_GAP 未定義時の affine の I 層）
+    // のためにある。
     // dominated() / record() を呼んではならない。
-    ReachedOffsetTable() = default;
+    BasicReachedOffsetTable() = default;
 
     // ノード添字で引く表 (_begin, _radius) をここで確保する。確保はノード数に比例するので、
     // クエリごとではなく所有者の構築時に一度だけ行い、クエリ間では reset() で使い回す。
     //   parent_path_len[v] : 根から v の親までのパス長。ウィンドウの中心になる。
-    explicit ReachedOffsetTable(const std::vector<uint32_t> &parent_path_len)
+    explicit BasicReachedOffsetTable(const std::vector<uint32_t> &parent_path_len)
         : _center(&parent_path_len),
           // 半径 0 を「このクエリではまだ確保していない」の印にする。
           // 実際の半径は必ず INITIAL_RADIUS 以上なので 0 と衝突しない。
@@ -61,12 +84,12 @@ class ReachedOffsetTable {
     }
 
     // (node_id, diagonal) が記録済みの内容に照らして支配されているか。
-    // 既定の設定では offset は使われず、記録の有無だけを返す。
+    // STORE_OFFSET = false では offset は使われず、記録の有無だけを返す。
     // score はウィンドウの不変条件 |d - L_p(v)| <= s の検査にのみ使う。
     [[nodiscard]] bool dominated(uint32_t node_id, int32_t diagonal, int32_t offset,
                                  int32_t score) {
         const std::size_t pos = locate(node_id, diagonal, score);
-        if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
+        if constexpr (STORE_OFFSET) {
             return offset <= static_cast<int32_t>(_arena[_cached_begin + pos]);
         } else {
             const uint32_t word = _arena[_cached_begin + pos / BITS_PER_WORD];
@@ -75,10 +98,10 @@ class ReachedOffsetTable {
     }
 
     // (node_id, diagonal) を処理済みとして記録する。
-    // 既定の設定では offset を無視してビットを立てるだけ。
+    // STORE_OFFSET = false では offset を無視してビットを立てるだけ。
     void record(uint32_t node_id, int32_t diagonal, int32_t offset, int32_t score) {
         const std::size_t pos = locate(node_id, diagonal, score);
-        if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
+        if constexpr (STORE_OFFSET) {
             _arena[_cached_begin + pos] = static_cast<uint32_t>(offset);
         } else {
             _arena[_cached_begin + pos / BITS_PER_WORD] |= (uint32_t{1} << (pos % BITS_PER_WORD));
@@ -93,13 +116,12 @@ class ReachedOffsetTable {
     static constexpr std::size_t INITIAL_RADIUS = BITS_PER_WORD;
 
     // 未到達を表す値。
-    static constexpr uint32_t ARENA_INIT =
-        DOMINANCE_AT_EXTEND_ENTRY ? static_cast<uint32_t>(INT32_MIN) : 0u;
+    static constexpr uint32_t ARENA_INIT = STORE_OFFSET ? static_cast<uint32_t>(INT32_MIN) : 0u;
 
     // 半径 radius（対角線の本数）の区画が占めるアリーナの要素数。
     // radius は BITS_PER_WORD の倍数なので、ビット詰めでも割り切れる。
     [[nodiscard]] static constexpr std::size_t elements_for(std::size_t radius) noexcept {
-        if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
+        if constexpr (STORE_OFFSET) {
             return radius * 2;
         } else {
             return (radius * 2) / BITS_PER_WORD;
@@ -108,7 +130,7 @@ class ReachedOffsetTable {
 
     // 対角線 shift 本ぶんのずれが、アリーナの要素いくつぶんにあたるか。
     [[nodiscard]] static constexpr std::size_t elements_shift(std::size_t shift) noexcept {
-        if constexpr (DOMINANCE_AT_EXTEND_ENTRY) {
+        if constexpr (STORE_OFFSET) {
             return shift;
         } else {
             return shift / BITS_PER_WORD;
@@ -119,7 +141,7 @@ class ReachedOffsetTable {
     // 呼び出し後は _cached_begin がそのノードの区画先頭を指している。
     [[nodiscard]] std::size_t locate(uint32_t node_id, int32_t diagonal,
                                      [[maybe_unused]] int32_t score) {
-        // extend は状態をノードごとにまとめて処理するので、直前のノードの区画情報を
+        // extend と expand は状態をノードごとにまとめて処理するので、直前のノードの区画情報を
         // 持ち回れば、状態 1 個あたりの表引きが 4 本から 1 本に減る。
         if (node_id != _cached_node) {
             refresh_cache(node_id);
@@ -197,5 +219,11 @@ class ReachedOffsetTable {
     int64_t _cached_center = 0;
     int64_t _cached_radius = 0;
 };
+
+using ReachedOffsetTable = BasicReachedOffsetTable<DOMINANCE_AT_EXTEND_ENTRY>;
+
+// affine の D 層（と REACH_GAP 定義時の I 層）の表。
+// REACH_GAP 定義時は全状態の offset を比べるので、M 層の設定によらず offset を持つ。
+using ReachedGapTable = BasicReachedOffsetTable<REACH_GAP || DOMINANCE_AT_EXTEND_ENTRY>;
 
 }  // namespace dt_patricia::internal
