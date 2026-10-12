@@ -323,6 +323,8 @@ void DTPatricia<Alphabet, CostType>::expand(
                 return false;
             }
             table.record(nid, diag, off, next_score);
+        } else {
+            (void)next_score;
         }
         return true;
     };
